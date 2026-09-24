@@ -300,3 +300,13 @@ Punti che la specifica non fissava; sono implementati e coperti da test.
 - **Distanza**: per i metodi di flusso è in euro annui, per gli altri in euro di capitale (`kind` lo indica). Gli anni sono stimati solo per il Fi-Number e il Coast.
 - **Verdetto**: `determining` elenca i metodi verdi se il verdetto è verde, altrimenti i non verdi più vicini, quanti ne servono per arrivare al minimo.
 - **Affitti e dividendi incassati**: vanno inseriti come entrate (`IncomeItem`) se finiscono su un conto di spesa. Se non lo sono, il loro accredito abbassa artificialmente il costo della vita.
+
+### Decisioni prese durante la fase 3 (`lifebook-api`)
+
+- **Endpoint aggiunto**: `results/net-worth` (patrimonio netto, composizione per tipo di conto e capitale investibile, con `asOf` o serie). Serve al primo grafico del cruscotto, che la sezione 10 non copriva. `results/living-cost` restituisce anche la ripartizione spesa essenziale/discrezionale.
+- **Autenticazione**: `POST /auth/setup` crea l'unico utente (una sola volta), `POST /auth/login` emette un token di sessione di 30 giorni, `POST /auth/tokens` un token API senza scadenza (mostrato una sola volta). Entrambi si usano come `Authorization: Bearer` e sono salvati solo come hash SHA-256. Le password usano scrypt.
+- **Archiviazione**: denaro in centesimi interi, tassi come frazioni. Impostazioni e parametri dei conti sono patch JSON con `validFrom`; nelle risposte tornano in euro.
+- **Conti**: `DELETE` è consentito solo per conti senza snapshot né contributi (altrimenti 409, va archiviato con `archivedAt`). Il tipo di un conto non si può cambiare.
+- **Snapshot**: uno solo per conto e data (409 se esiste già; si modifica con `PATCH`).
+- **Risultati**: senza parametri usano la data di oggi. Con `from` e `to` (e `step` = `month` o `round`) restituiscono la serie, un punto per data calcolato as-of.
+- **Ascolto**: il server ascolta su 127.0.0.1 per default. Il logger non registra intestazioni di autenticazione né corpi delle richieste.

@@ -31,7 +31,25 @@ Dalla radice, su tutti i pacchetti:
 | `pnpm check`     | format, lint, typecheck e test: la CI locale |
 | `pnpm format`    | formatta con Prettier                        |
 
+`lifebook-core` è un pacchetto interno: gli altri pacchetti lo importano direttamente dai sorgenti TypeScript, quindi non serve compilarlo prima. `build` dell'API controlla solo i tipi: il server si avvia con `tsx`.
+
 Su un solo pacchetto: `pnpm --filter @lifebook/core test`.
+
+## API
+
+```
+pnpm --filter @lifebook/api start      # http://127.0.0.1:3000/api/v1
+```
+
+| Variabile     | Default                | Cosa fa                  |
+| ------------- | ---------------------- | ------------------------ |
+| `LIFEBOOK_DB` | `data/lifebook.sqlite` | percorso del file SQLite |
+| `PORT`        | `3000`                 | porta                    |
+| `HOST`        | `127.0.0.1`            | ascolta solo in locale   |
+
+Al primo avvio crea l'utente con `POST /api/v1/auth/setup`. Poi `POST /api/v1/auth/login` restituisce un token di sessione (30 giorni); i token per accessi esterni si creano con `POST /api/v1/auth/tokens`. Ogni richiesta usa `Authorization: Bearer <token>`. La documentazione OpenAPI, generata dagli schemi zod, è su `/api/v1/openapi.json`.
+
+Dopo aver modificato `src/db/schema.ts` genera la migrazione con `pnpm --filter @lifebook/api db:generate`: viene applicata all'avvio.
 
 ## Dati
 
