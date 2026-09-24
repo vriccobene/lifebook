@@ -23,6 +23,13 @@ try {
   );
 } catch (error) {
   console.error((error as Error).message);
+  console.error(`File: ${dbPath}`);
+  console.error(
+    `Se contiene già i dati di esempio, accedi con  utente: ${DEMO_CREDENTIALS.username}  password: ${DEMO_CREDENTIALS.password}.`,
+  );
+  console.error(
+    "Per ripartire da zero elimina quel file (e gli eventuali .sqlite-wal e .sqlite-shm accanto) e rilancia il comando.",
+  );
   process.exitCode = 1;
 } finally {
   await app.close();
