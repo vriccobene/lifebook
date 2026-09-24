@@ -103,10 +103,10 @@ describe("full scenario", () => {
     );
   });
 
-  it("uses the most recent month with data for the single-value methods", () => {
+  it("uses the month of the as-of date for the single-value methods", () => {
     const data = richScenario();
     data.essentialSpending.push({ mode: "month_amount", value: 500, month: "2026-11" });
-    // the last period ends in December: a November-only value is not the current one
+    // as of December a November-only value is not the current one
     expect(method("layers", data).status).toBe("missing_data");
     data.essentialSpending.push({ mode: "month_amount", value: 500, month: "2026-12" });
     expect(method("layers", data).status).not.toBe("missing_data");
@@ -264,5 +264,16 @@ describe("series", () => {
     expect(living.map((p) => p.value.periods.length)).toEqual([
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
     ]);
+  });
+});
+
+describe("essential spending in the current month", () => {
+  it("applies a fixed amount valid from a date inside the current month (regression)", () => {
+    // the last reading is on Aug 31 but the user is working on Sep 24 and enters an amount from that day
+    const data = richScenario();
+    data.snapshots = data.snapshots.filter((s) => s.date <= "2026-08-31");
+    data.essentialSpending.push({ mode: "amount", value: 1_500, validFrom: "2026-09-24" });
+    expect(method("layers", data, "2026-09-24").status).not.toBe("missing_data");
+    expect(method("layers", data, "2026-08-31").status).toBe("missing_data"); // not yet in force in August
   });
 });

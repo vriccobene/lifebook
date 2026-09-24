@@ -54,9 +54,8 @@ function buildContext(
   livingCost: LivingCostResult,
   capital: CapitalSummary,
 ): MethodContext {
-  // Single-value methods use the most recent month with data.
-  const lastPeriod = livingCost.periods[livingCost.periods.length - 1];
-  const month = lastPeriod ? monthOf(lastPeriod.to) : monthOf(ds.asOf);
+  // Single-value methods use the current month, i.e. the month of the as-of date.
+  const month = monthOf(ds.asOf);
   const resolved = resolveEssentialForMonth(
     ds.essentialSpending,
     month,

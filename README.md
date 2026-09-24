@@ -35,6 +35,10 @@ Dalla radice, su tutti i pacchetti:
 
 Su un solo pacchetto: `pnpm --filter @lifebook/core test`.
 
+## Sviluppo
+
+`pnpm dev` avvia insieme l'API (porta 3000) e la web app (http://localhost:5173, con proxy verso l'API).
+
 ## API
 
 ```
