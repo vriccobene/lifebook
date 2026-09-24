@@ -100,7 +100,7 @@ export function LineSeries({
         {c.x}
         {c.y}
         {c.tooltip}
-        <Legend />
+        <Legend wrapperStyle={{ fontSize: 12, paddingTop: 6 }} />
         {series.map((s, i) => (
           <Line
             key={s.key}
@@ -136,7 +136,7 @@ export function StackedArea({
         {c.x}
         {c.y}
         {c.tooltip}
-        <Legend />
+        <Legend wrapperStyle={{ fontSize: 12, paddingTop: 6 }} />
         {series.map((s, i) => (
           <Area
             key={s.key}
@@ -185,7 +185,7 @@ export function Bars({
         {c.x}
         {c.y}
         {c.tooltip}
-        <Legend />
+        <Legend wrapperStyle={{ fontSize: 12, paddingTop: 6 }} />
         {series.map((s, i) => (
           <Bar
             key={s.key}

@@ -116,7 +116,7 @@ main {
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
 }
 .grid.two {
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
 }
 .kpi .label {
   color: var(--muted);
@@ -324,7 +324,7 @@ button:disabled {
   margin-bottom: 16px;
 }
 .chart {
-  height: 280px;
+  height: 340px;
 }
 .strip {
   display: flex;
@@ -366,6 +366,9 @@ button:disabled {
 @media (max-width: 640px) {
   .grid.two {
     grid-template-columns: 1fr;
+  }
+  .chart {
+    height: 300px;
   }
   main {
     padding: 12px;
