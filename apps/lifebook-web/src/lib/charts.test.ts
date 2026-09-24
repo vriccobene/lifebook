@@ -47,6 +47,7 @@ describe("chart data", () => {
         deposit: 0,
         brokerage: 90,
         external_investment: 0,
+        pension_fund: 0,
         real_estate: 200,
         liability: -200,
       },

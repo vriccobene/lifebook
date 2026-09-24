@@ -76,7 +76,7 @@ Il sistema non può dedurre dai saldi quanto del costo della vita sia essenziale
 | Campo | Note |
 |---|---|
 | `id`, `ownerId`, `name`, `institution` | `ownerId` sempre lo stesso utente nell'MVP |
-| `type` | `checking`, `deposit`, `brokerage`, `external_investment`, `real_estate`, `liability` |
+| `type` | `checking`, `deposit`, `brokerage`, `external_investment`, `pension_fund`, `real_estate`, `liability` |
 | `isSpendingAccount` | **il conto da cui l'utente spende** (vedi sezione 5) |
 | `inInvestableCapital` | se il conto conta nel capitale investibile |
 | `realEstateUse` | solo per `real_estate`: `primary_residence` (esclusa dal capitale investibile) oppure `income` (inclusa, con affitto netto) |
@@ -325,3 +325,8 @@ Punti che la specifica non fissava; sono implementati e coperti da test.
 
 - Aggiunta su richiesta (non era nella sezione 9). Non cambia il modello: un trasferimento è una o due `Contribution`. Le voci si creano solo sui conti a contributi dichiarati e non di spesa (negativa dal conto che cede, positiva su quello che riceve). Per i conti di spesa, per i depositi `inferred` e per gli immobili non si crea nulla: il movimento è già nei saldi e una voce in più lo conterebbe due volte. Se entrambi i conti sono di questo tipo l'app lo dice e non registra niente.
 - Le singole spese restano fuori dall'MVP (sezione 2): il costo della vita si deduce dai saldi.
+
+### Tipo di conto «Fondo pensione»
+
+- Aggiunto il tipo `pension_fund` (fondo pensione). Si comporta come un investimento a contributi dichiarati (versamenti e prelievi registrati dall'utente, rendimento come variazione del saldo meno i contributi, `taxRate` proprio) ed è un tipo a sé nella composizione del patrimonio netto.
+- Per default `inInvestableCapital` è falso: il fondo è vincolato fino al pensionamento. L'utente può includerlo con il consueto parametro datato. Quando è incluso conta anche nel capitale rischioso della copertura per strati.

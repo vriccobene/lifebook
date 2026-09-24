@@ -40,7 +40,15 @@ export const accounts = sqliteTable(
     name: text("name").notNull(),
     institution: text("institution"),
     type: text("type", {
-      enum: ["checking", "deposit", "brokerage", "external_investment", "real_estate", "liability"],
+      enum: [
+        "checking",
+        "deposit",
+        "brokerage",
+        "external_investment",
+        "pension_fund",
+        "real_estate",
+        "liability",
+      ],
     }).notNull(),
     realEstateUse: text("real_estate_use", { enum: ["primary_residence", "income"] }),
     contributionsMode: text("contributions_mode", { enum: ["declared", "inferred"] }).notNull(),

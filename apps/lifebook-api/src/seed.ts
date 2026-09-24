@@ -76,7 +76,7 @@ export async function seedDemoData(
   const fund = (
     await send("POST", "/accounts", {
       name: "Fondo pensione",
-      type: "external_investment",
+      type: "pension_fund",
       params: [{ validFrom, expectedReturn: 0.03, taxRate: 0.15, inInvestableCapital: false }],
     })
   ).id;

@@ -564,3 +564,23 @@ describe("transfers and contributions", () => {
     expect(await contributions(token)).toEqual([]);
   });
 });
+
+describe("pension fund accounts", () => {
+  it("can be created from the accounts screen, not investable by default", async () => {
+    const token = await signIn(backend);
+    const user = userEvent.setup();
+    render(<App />);
+    go("#/conti");
+    await user.click(await screen.findByRole("button", { name: "Nuovo conto" }));
+    await user.type(screen.getByLabelText("Nome"), "Fondo Esempio");
+    await user.selectOptions(screen.getByLabelText("Tipo"), "pension_fund");
+    expect((screen.getByLabelText("Nel capitale investibile") as HTMLInputElement).checked).toBe(
+      false,
+    );
+    await user.click(screen.getByRole("button", { name: "Crea conto" }));
+    expect(await screen.findByText("Fondo Esempio")).toBeTruthy();
+    const [fund] = (await backend.call("GET", "/accounts", undefined, token)).body;
+    expect(fund).toMatchObject({ type: "pension_fund", contributionsMode: "declared" });
+    expect(fund.params[0].inInvestableCapital).toBe(false);
+  });
+});

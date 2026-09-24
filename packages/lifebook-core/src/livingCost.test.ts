@@ -426,3 +426,25 @@ describe("living cost: periods are calendar months", () => {
     expect(long!.monthlySpending).toBe(1500);
   });
 });
+
+describe("living cost: pension fund contributions", () => {
+  it("are transfers, not spending, exactly like other declared accounts (regression)", () => {
+    const data = steadyLife({ months: 2, salary: 2000, monthlySpending: 1500 });
+    data.accounts.push(account("fund", "pension_fund"));
+    // 200 a month leave the spending account for the fund: it grows by 300 instead of 500
+    data.snapshots = data.snapshots.filter((s) => s.accountId !== "chk");
+    data.snapshots.push(
+      snap("chk", "2025-12-31", 1000),
+      snap("chk", "2026-01-31", 1300),
+      snap("chk", "2026-02-28", 1600),
+      snap("fund", "2025-12-31", 10_000),
+      snap("fund", "2026-01-31", 10_200),
+      snap("fund", "2026-02-28", 10_400),
+    );
+    data.contributions.push(
+      contribution("fund", "2026-01-20", 200),
+      contribution("fund", "2026-02-20", 200),
+    );
+    expect(livingCost(data).periods.map((p) => p.spending)).toEqual([1500, 1500]);
+  });
+});

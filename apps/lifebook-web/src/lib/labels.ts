@@ -6,6 +6,7 @@ export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   deposit: "Deposito",
   brokerage: "Titoli",
   external_investment: "Investimento esterno",
+  pension_fund: "Fondo pensione",
   real_estate: "Immobile",
   liability: "Passività",
 };

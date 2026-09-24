@@ -17,6 +17,7 @@ export const ACCOUNT_TYPES: AccountType[] = [
   "deposit",
   "brokerage",
   "external_investment",
+  "pension_fund",
   "real_estate",
   "liability",
 ];

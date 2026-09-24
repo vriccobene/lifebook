@@ -125,3 +125,14 @@ describe("movement labels", () => {
     expect(movementLabel(undefined, 10)).toBe("Versamento");
   });
 });
+
+describe("pension fund", () => {
+  it("takes contributions like the other declared accounts", () => {
+    const pension = account("pension", { type: "pension_fund" });
+    expect(accountRole(pension, date)).toBe("declared");
+    expect(contributionAccounts([chk, pension], date).map((a) => a.id)).toEqual(["pension"]);
+    expect(planTransfer(chk, pension, 200, date).contributions).toEqual([
+      { accountId: "pension", date, amount: 200 },
+    ]);
+  });
+});

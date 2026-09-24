@@ -166,3 +166,39 @@ describe("flows and expected return", () => {
     expect(result.riskyCapital).toBeCloseTo(bro, 6);
   });
 });
+
+describe("pension fund", () => {
+  const withFund = (flag?: boolean): LifebookData => {
+    const data = richScenario();
+    data.accounts.push(
+      account("fund", "pension_fund", {
+        params: {
+          expectedReturn: 0.03,
+          ...(flag === undefined ? {} : { inInvestableCapital: flag }),
+        },
+      }),
+    );
+    for (const s of richScenario().snapshots.filter((x) => x.accountId === "home")) {
+      data.snapshots.push(snap("fund", s.date, 40_000));
+    }
+    return data;
+  };
+
+  it("counts in the net worth and in its own bucket of the composition", () => {
+    const base = capital(richScenario());
+    const result = capital(withFund());
+    expect(result.netWorth).toBe(base.netWorth + 40_000);
+    expect(result.netWorthByType.pension_fund).toBe(40_000);
+  });
+
+  it("does not count as investable capital by default (regression)", () => {
+    expect(capital(withFund()).investableGross).toBe(capital(richScenario()).investableGross);
+  });
+
+  it("counts as investable, and as risky capital, once the user includes it", () => {
+    const base = capital(richScenario());
+    const result = capital(withFund(true));
+    expect(result.investableGross).toBe(base.investableGross + 40_000);
+    expect(result.riskyCapital).toBeCloseTo(base.riskyCapital! + 40_000, 6);
+  });
+});

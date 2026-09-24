@@ -4,8 +4,10 @@ import type { Account, AccountParams } from "./types";
 export function defaultAccountParams(
   account: Pick<Account, "type" | "realEstateUse">,
 ): AccountParams {
+  // A pension fund is locked until retirement: out of the investable capital unless the user includes it.
   const investableByDefault =
     account.type !== "liability" &&
+    account.type !== "pension_fund" &&
     !(account.type === "real_estate" && account.realEstateUse !== "income");
   return {
     isSpendingAccount: false,

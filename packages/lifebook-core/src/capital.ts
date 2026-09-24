@@ -57,6 +57,7 @@ export function computeCapital(ds: Dataset, livingCost: LivingCostResult): Capit
     deposit: 0,
     brokerage: 0,
     external_investment: 0,
+    pension_fund: 0,
     real_estate: 0,
     liability: 0,
   };
@@ -77,7 +78,12 @@ export function computeCapital(ds: Dataset, livingCost: LivingCostResult): Capit
   const liquidInvestable = sum(investable.filter(liquid).map((b) => b.balance));
   const riskyBalances = sum(
     investable
-      .filter((b) => b.account.type === "brokerage" || b.account.type === "external_investment")
+      .filter(
+        (b) =>
+          b.account.type === "brokerage" ||
+          b.account.type === "external_investment" ||
+          b.account.type === "pension_fund",
+      )
       .map((b) => b.balance),
   );
   const riskyCapital =

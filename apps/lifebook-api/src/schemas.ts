@@ -19,6 +19,7 @@ export const accountTypeSchema = z.enum([
   "deposit",
   "brokerage",
   "external_investment",
+  "pension_fund",
   "real_estate",
   "liability",
 ]);

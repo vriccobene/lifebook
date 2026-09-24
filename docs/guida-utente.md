@@ -25,7 +25,8 @@ Il comando rifiuta di lavorare su un database che ha già un utente.
 1. **Conti.** Crea un conto per ogni saldo che vuoi seguire: conti correnti, depositi, titoli, investimenti esterni, immobili, mutui e altre passività.
    - Marca come **conto di spesa** quello (o quelli) da cui paghi la vita quotidiana. È la base del calcolo del costo della vita.
    - Per i **titoli** i contributi (versamenti e prelievi) li inserisci tu ogni mese. Per i **depositi** vengono dedotti dal saldo, conoscendo il tasso.
-   - Per un **immobile** scegli se è abitazione principale (esclusa dal capitale investibile) o a reddito.
+   - Un **fondo pensione** ha contributi dichiarati come i titoli, ma per default resta **fuori dal capitale investibile**, perché è vincolato fino al pensionamento. Se vuoi contarlo, attiva «Nel capitale investibile» nei suoi parametri (anche da una data in poi).
+- Per un **immobile** scegli se è abitazione principale (esclusa dal capitale investibile) o a reddito.
    - Per un **mutuo** indica rata mensile, data dell'ultima rata e se la rata è costo della vita.
 2. **Entrate.** Inserisci lo stipendio netto, la tredicesima, i bonus. Inserisci anche affitti e dividendi che finiscono su un conto di spesa: se mancano, abbassano il costo della vita calcolato.
 3. **Impostazioni.** Controlla il tasso di prelievo sicuro (3,5%), il buffer di emergenza (6 mesi), le età (necessarie per Coast FIRE e Ponte) e le soglie del semaforo.

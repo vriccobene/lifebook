@@ -15,7 +15,9 @@ export interface ParamsForm {
 }
 
 export const defaultInvestable = (type: AccountType, realEstateUse: string | null): boolean =>
-  type !== "liability" && !(type === "real_estate" && realEstateUse !== "income");
+  type !== "liability" &&
+  type !== "pension_fund" &&
+  !(type === "real_estate" && realEstateUse !== "income");
 
 export function emptyParamsForm(
   type: AccountType,

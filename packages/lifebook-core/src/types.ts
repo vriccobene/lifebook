@@ -1,7 +1,13 @@
 import type { IsoDate, IsoMonth } from "./dates";
 
 export type AccountType =
-  "checking" | "deposit" | "brokerage" | "external_investment" | "real_estate" | "liability";
+  | "checking"
+  | "deposit"
+  | "brokerage"
+  | "external_investment"
+  | "pension_fund"
+  | "real_estate"
+  | "liability";
 
 export type ContributionsMode = "declared" | "inferred";
 export type RealEstateUse = "primary_residence" | "income";

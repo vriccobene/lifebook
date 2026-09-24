@@ -145,6 +145,7 @@ export function methodContext(
       deposit: 0,
       brokerage: 0,
       external_investment: 0,
+      pension_fund: 0,
       real_estate: 0,
       liability: 0,
     },

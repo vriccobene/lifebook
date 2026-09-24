@@ -204,3 +204,26 @@ describe("ownership", () => {
     expect(t.db.select().from(accounts).all()).toHaveLength(1);
   });
 });
+
+describe("pension fund accounts", () => {
+  it("can be created, with declared contributions by default", async () => {
+    const res = await api.post("/accounts", { name: "Fondo pensione", type: "pension_fund" });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      type: "pension_fund",
+      contributionsMode: "declared",
+      realEstateUse: null,
+    });
+  });
+
+  it("takes part in the results as its own type and stays out of the investable capital (regression)", async () => {
+    const fund = (await api.post("/accounts", { name: "Fondo", type: "pension_fund" })).body.id;
+    const broker = (await api.post("/accounts", { name: "Titoli", type: "brokerage" })).body.id;
+    await api.post("/snapshots", { accountId: fund, date: "2026-01-31", balance: 30_000 });
+    await api.post("/snapshots", { accountId: broker, date: "2026-01-31", balance: 10_000 });
+    const worth = (await api.get("/results/net-worth?asOf=2026-01-31")).body;
+    expect(worth.netWorth).toBe(40_000);
+    expect(worth.netWorthByType.pension_fund).toBe(30_000);
+    expect(worth.investableGross).toBe(10_000);
+  });
+});

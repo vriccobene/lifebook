@@ -65,3 +65,10 @@ describe("account parameters form", () => {
     ]);
   });
 });
+
+describe("pension fund", () => {
+  it("is not investable by default", () => {
+    expect(defaultInvestable("pension_fund", null)).toBe(false);
+    expect(emptyParamsForm("pension_fund", null, "2026-01-01").inInvestableCapital).toBe(false);
+  });
+});

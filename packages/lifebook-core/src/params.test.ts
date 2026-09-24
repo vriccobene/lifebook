@@ -98,3 +98,13 @@ describe("settings over time", () => {
     expect(toRealRate(0.02, 0.02)).toBeCloseTo(0, 12);
   });
 });
+
+describe("pension fund accounts", () => {
+  it("is out of the investable capital by default, and the user can include it", () => {
+    const fund = account("fund", "pension_fund");
+    expect(resolveAccountParams(fund, "2026-01-01").inInvestableCapital).toBe(false);
+    fund.params.push({ validFrom: "2026-06-01", inInvestableCapital: true });
+    expect(resolveAccountParams(fund, "2026-05-31").inInvestableCapital).toBe(false);
+    expect(resolveAccountParams(fund, "2026-06-01").inInvestableCapital).toBe(true);
+  });
+});

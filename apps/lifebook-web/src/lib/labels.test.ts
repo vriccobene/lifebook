@@ -50,3 +50,10 @@ describe("Italian texts", () => {
     );
   });
 });
+
+describe("account types", () => {
+  it("names the pension fund", async () => {
+    const { ACCOUNT_TYPE_LABELS } = await import("./labels");
+    expect(ACCOUNT_TYPE_LABELS.pension_fund).toBe("Fondo pensione");
+  });
+});
