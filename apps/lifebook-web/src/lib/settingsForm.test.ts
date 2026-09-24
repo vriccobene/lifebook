@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SettingsValues } from "../api/types";
-import { diffSettings, settingsToForm } from "./settingsForm";
+import { describeSettingsEntry, diffSettings, settingsToForm } from "./settingsForm";
 
 const defaults: SettingsValues = {
   inflationRate: 0.02,
@@ -91,5 +91,29 @@ describe("settings form", () => {
     expect(
       diffSettings(defaults, { ...settingsToForm(defaults), livingCostWindow: "6" }).patch,
     ).toEqual({ livingCostWindow: 6 });
+  });
+});
+
+describe("settings history text", () => {
+  it("uses the labels of the form, never internal field names (regression)", () => {
+    const lines = describeSettingsEntry({
+      safeWithdrawalRate: 0.04,
+      currentAge: 42,
+      publicPension: { enabled: true, netMonthlyAmount: 1100.5 },
+    });
+    expect(lines).toEqual([
+      "Tasso di prelievo sicuro: 4%",
+      "Età attuale: 42 anni",
+      "Considera la pensione pubblica: sì",
+      "Importo netto mensile: 1100,5 € al mese",
+    ]);
+    expect(lines.join(" ")).not.toMatch(/publicPension|safeWithdrawalRate|netMonthlyAmount/);
+  });
+
+  it("says when a value was cleared and describes the thresholds and the window", () => {
+    expect(describeSettingsEntry({ currentAge: null })).toEqual(["Età attuale: non impostata"]);
+    expect(
+      describeSettingsEntry({ trafficLight: { greenAt: 1, yellowAt: 0.8 }, livingCostWindow: 6 }),
+    ).toEqual(["Finestra del costo della vita: 6 mesi", "Verde da: 100%", "Giallo da: 80%"]);
   });
 });

@@ -7,6 +7,7 @@ import { todayIso } from "../lib/dates";
 import { formatDate } from "../lib/format";
 import {
   SETTINGS_FIELDS,
+  describeSettingsEntry,
   diffSettings,
   settingsToForm,
   type FormValues,
@@ -144,9 +145,9 @@ export function Settings() {
                 <tr key={id}>
                   <td style={{ width: 120 }}>dal {formatDate(from)}</td>
                   <td className="small">
-                    {Object.entries(values)
-                      .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
-                      .join(" · ")}
+                    {describeSettingsEntry(values).map((line) => (
+                      <div key={line}>{line}</div>
+                    ))}
                   </td>
                   <td style={{ width: 80 }}>
                     <button

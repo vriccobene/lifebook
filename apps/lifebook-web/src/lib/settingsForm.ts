@@ -227,3 +227,25 @@ export function diffSettings(
   }
   return { patch, errors };
 }
+
+function display(field: FieldDef, value: unknown): string {
+  if (value === null || value === undefined) return "non impostata";
+  if (field.kind === "boolean") return value ? "sì" : "no";
+  if (field.kind === "percent") return fractionToPercentInput(value as number) + "%";
+  const text = toInputNumber(value as number);
+  return field.unit ? `${text} ${field.unit}` : text;
+}
+
+/** Readable summary of a dated settings entry: `Tasso di prelievo sicuro: 4%`, never internal field names. */
+export function describeSettingsEntry(values: Readonly<Record<string, unknown>>): string[] {
+  const lines: string[] = [];
+  for (const field of SETTINGS_FIELDS) {
+    let node: unknown = values;
+    for (const key of field.path) {
+      node = node && typeof node === "object" ? (node as Record<string, unknown>)[key] : undefined;
+    }
+    if (node === undefined) continue;
+    lines.push(`${field.label}: ${display(field, node)}`);
+  }
+  return lines;
+}
