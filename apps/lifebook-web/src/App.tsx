@@ -8,6 +8,7 @@ import { Giro } from "./pages/Giro";
 import { Income } from "./pages/Income";
 import { Login } from "./pages/Login";
 import { Returns } from "./pages/Returns";
+import { Transfers } from "./pages/Transfers";
 import { Settings } from "./pages/Settings";
 import { useHashPath } from "./lib/router";
 
@@ -16,6 +17,7 @@ export const APP_TITLE = "Lifebook";
 export const ROUTES: { path: string; label: string; element: () => ReactNode }[] = [
   { path: "/", label: "Cruscotto", element: () => <Dashboard /> },
   { path: "/giro", label: "Giro mensile", element: () => <Giro /> },
+  { path: "/trasferimenti", label: "Trasferimenti", element: () => <Transfers /> },
   { path: "/conti", label: "Conti", element: () => <Accounts /> },
   { path: "/rendimenti", label: "Rendimenti", element: () => <Returns /> },
   { path: "/entrate", label: "Entrate", element: () => <Income /> },

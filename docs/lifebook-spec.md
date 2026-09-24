@@ -320,3 +320,8 @@ Punti che la specifica non fissava; sono implementati e coperti da test.
 - **Interfaccia**: i numeri sono sempre raggruppati con il punto (1.234), a differenza di quanto fanno di default i browser italiani per i numeri a quattro cifre.
 - **Backup**: copia con l'API di backup di SQLite (consistente a database in uso), nome con data e ora locali, si tengono gli ultimi 30 file per default.
 - **Dati di esempio**: 24 mesi di una famiglia fittizia, generati con un seme fisso attraverso la stessa API; si caricano solo in un database vuoto.
+
+### Schermata Trasferimenti
+
+- Aggiunta su richiesta (non era nella sezione 9). Non cambia il modello: un trasferimento è una o due `Contribution`. Le voci si creano solo sui conti a contributi dichiarati e non di spesa (negativa dal conto che cede, positiva su quello che riceve). Per i conti di spesa, per i depositi `inferred` e per gli immobili non si crea nulla: il movimento è già nei saldi e una voce in più lo conterebbe due volte. Se entrambi i conti sono di questo tipo l'app lo dice e non registra niente.
+- Le singole spese restano fuori dall'MVP (sezione 2): il costo della vita si deduce dai saldi.

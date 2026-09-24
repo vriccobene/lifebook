@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { defaultRoundDate, todayIso } from "./lib/dates";
 import { CREDENTIALS, seedLife, signIn, startBackend, type Backend } from "./test/backend";
@@ -425,5 +425,142 @@ describe("accounts, income and returns", () => {
     expect(await screen.findByText("Riepilogo dell'intervallo")).toBeTruthy();
     expect(screen.getAllByText("Titoli").length).toBeGreaterThan(0);
     expect(screen.getByText("Totale")).toBeTruthy();
+  });
+});
+
+describe("transfers and contributions", () => {
+  const contributions = async (token: string) =>
+    (await backend.call("GET", "/contributions", undefined, token)).body;
+
+  it("records a transfer from the spending account to a declared account with one contribution", async () => {
+    const token = await signIn(backend);
+    const ids = await seedLife(backend, token, today);
+    const user = userEvent.setup();
+    render(<App />);
+    go("#/trasferimenti");
+    await screen.findByRole("heading", { name: "Trasferimenti" });
+
+    await user.selectOptions(screen.getByLabelText("Da"), ids.chk);
+    await user.selectOptions(screen.getByLabelText("A"), ids.bro);
+    await user.type(screen.getAllByLabelText("Importo (€)", { selector: "input" })[0]!, "500");
+    expect(await screen.findByText(/Verrà registrato:/)).toBeTruthy();
+    expect(screen.getByText(/è un conto di spesa/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Registra trasferimento" }));
+
+    expect(await screen.findByText(/Trasferimento registrato \(1 voce\)/)).toBeTruthy();
+    expect(await contributions(token)).toEqual([
+      expect.objectContaining({ accountId: ids.bro, date: today, amount: 500 }),
+    ]);
+  });
+
+  it("records both sides between two declared accounts and none for a deduced deposit", async () => {
+    const token = await signIn(backend);
+    const ids = await seedLife(backend, token, today);
+    const fund = (
+      await backend.call("POST", "/accounts", { name: "Fondo", type: "external_investment" }, token)
+    ).body.id;
+    const user = userEvent.setup();
+    render(<App />);
+    go("#/trasferimenti");
+    await screen.findByRole("heading", { name: "Trasferimenti" });
+
+    await user.selectOptions(screen.getByLabelText("Da"), ids.bro);
+    await user.selectOptions(screen.getByLabelText("A"), fund);
+    await user.type(screen.getAllByLabelText("Importo (€)", { selector: "input" })[0]!, "300,5");
+    await user.click(screen.getByRole("button", { name: "Registra trasferimento" }));
+    await screen.findByText(/Trasferimento registrato \(2 voci\)/);
+    const saved = await contributions(token);
+    expect(
+      saved.map((c: { accountId: string; amount: number }) => [c.accountId, c.amount]).sort(),
+    ).toEqual(
+      [
+        [ids.bro, -300.5],
+        [fund, 300.5],
+      ].sort(),
+    );
+
+    // spending account -> deposit: both are deduced from the balances, so nothing can be recorded
+    await user.selectOptions(screen.getByLabelText("Da"), ids.chk);
+    await user.selectOptions(screen.getByLabelText("A"), ids.dep);
+    await user.type(screen.getAllByLabelText("Importo (€)", { selector: "input" })[0]!, "100");
+    expect(await screen.findByText(/nulla da registrare/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Registra trasferimento" }));
+    expect(await contributions(token)).toHaveLength(2);
+  });
+
+  it("offers real estate nowhere in the transfer form", async () => {
+    const token = await signIn(backend);
+    await seedLife(backend, token, today);
+    render(<App />);
+    go("#/trasferimenti");
+    await screen.findByRole("heading", { name: "Trasferimenti" });
+    for (const label of ["Da", "A"]) {
+      expect(
+        within(screen.getByLabelText(label)).queryByRole("option", { name: "Casa" }),
+      ).toBeNull();
+    }
+    expect(
+      within(screen.getByLabelText("Da")).getByRole("option", { name: "Titoli" }),
+    ).toBeTruthy();
+  });
+
+  it("records a deposit or a withdrawal on a declared account, on a past date", async () => {
+    const token = await signIn(backend);
+    const ids = await seedLife(backend, token, today);
+    const user = userEvent.setup();
+    render(<App />);
+    go("#/trasferimenti");
+    await screen.findByRole("heading", { name: "Trasferimenti" });
+    const dateField = screen.getByLabelText(/Data dei movimenti/) as HTMLInputElement;
+    fireEvent.change(dateField, { target: { value: "2026-03-15" } });
+
+    await user.selectOptions(screen.getByLabelText("Conto"), ids.bro);
+    await user.selectOptions(screen.getByLabelText("Tipo"), "out");
+    await user.type(screen.getAllByLabelText("Importo (€)", { selector: "input" })[1]!, "250");
+    await user.click(screen.getByRole("button", { name: "Registra" }));
+    expect(await screen.findByText("Prelievo registrato.")).toBeTruthy();
+    expect(await contributions(token)).toEqual([
+      expect.objectContaining({ accountId: ids.bro, date: "2026-03-15", amount: -250 }),
+    ]);
+    expect(await screen.findByText("15/03/2026")).toBeTruthy();
+  });
+
+  it("edits and deletes a recorded movement", async () => {
+    const token = await signIn(backend);
+    const ids = await seedLife(backend, token, today);
+    await backend.call(
+      "POST",
+      "/contributions",
+      { accountId: ids.bro, date: "2026-03-15", amount: 100 },
+      token,
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    go("#/trasferimenti");
+    await user.click(await screen.findByRole("button", { name: "Modifica" }));
+    const amount = screen.getByLabelText("Importo", { selector: "td input" });
+    await user.clear(amount);
+    await user.type(amount, "-40,5");
+    await user.click(screen.getByRole("button", { name: "Salva" }));
+    await waitFor(async () => expect((await contributions(token))[0].amount).toBe(-40.5));
+    expect(await screen.findByText("Prelievo")).toBeTruthy();
+
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    await user.click(screen.getByRole("button", { name: "Elimina" }));
+    await waitFor(async () => expect(await contributions(token)).toEqual([]));
+  });
+
+  it("rejects an empty or invalid amount without writing anything", async () => {
+    const token = await signIn(backend);
+    const ids = await seedLife(backend, token, today);
+    const user = userEvent.setup();
+    render(<App />);
+    go("#/trasferimenti");
+    await screen.findByRole("heading", { name: "Trasferimenti" });
+    await user.selectOptions(screen.getByLabelText("Conto"), ids.bro);
+    await user.type(screen.getAllByLabelText("Importo (€)", { selector: "input" })[1]!, "abc");
+    await user.click(screen.getByRole("button", { name: "Registra" }));
+    expect(await screen.findByText(/maggiore di zero/)).toBeTruthy();
+    expect(await contributions(token)).toEqual([]);
   });
 });

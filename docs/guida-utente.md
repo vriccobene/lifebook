@@ -39,6 +39,16 @@ Un consiglio pratico: **leggi i conti più o meno nello stesso giorno del mese**
 
 Servono almeno due mesi di letture del conto di spesa prima che compaia un costo della vita: la prima è solo il punto di partenza.
 
+## Trasferimenti e contributi
+
+Nel giro mensile i contributi si inseriscono con la data del giro. La schermata **Trasferimenti** serve quando vuoi registrarli a parte, con una data qualsiasi, o correggerli:
+
+- **Trasferimento tra due conti:** scegli «Da», «A», importo e data. Prima di salvare vedi cosa verrà registrato. Le voci si creano solo sui conti a contributi dichiarati (titoli, investimenti esterni, passività): un prelievo da chi cede e un versamento a chi riceve. Per i conti di spesa e per i depositi con movimenti dedotti non si inserisce nulla, perché il loro movimento si legge già dal saldo e una voce in più verrebbe contata due volte.
+- **Versamento o prelievo su un conto:** per un singolo conto a contributi dichiarati.
+- **Movimenti registrati:** l'elenco di tutti i contributi, filtrabile per conto, con modifica della data e dell'importo e cancellazione.
+
+Le singole spese non si registrano: il costo della vita si deduce dai saldi.
+
 ## Leggere il cruscotto
 
 - **Verdetto.** Verde se almeno 3 metodi (impostabile) sono verdi, giallo se ne manca uno, rosso altrimenti. Sotto il verdetto trovi i metodi che lo determinano e quelli esclusi perché mancano dati.
