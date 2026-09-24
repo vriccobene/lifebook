@@ -65,7 +65,8 @@ function merge(target: Record<string, unknown>, patch: Record<string, unknown>):
 
 /** Settings in force at `date`: defaults overlaid by every entry with `validFrom <= date`, oldest first. */
 export function resolveSettings(entries: readonly SettingsEntry[], date: IsoDate): Settings {
-  const result = structuredClone(DEFAULT_SETTINGS) as unknown as Record<string, unknown>;
+  // Plain data only: a JSON round trip is a deep copy without depending on runtime globals.
+  const result = JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as Record<string, unknown>;
   const applicable = entries
     .map((entry, index) => ({ entry, index }))
     .filter(({ entry }) => entry.validFrom <= date)
