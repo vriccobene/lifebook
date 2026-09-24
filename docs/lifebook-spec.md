@@ -282,3 +282,21 @@ Contano i metodi 1-9, con Lean/Regular/Fat come un solo metodo (verde se Regular
 
 - Il DB salva il denaro in centesimi interi. Il core usa numeri in euro e la conversione avviene al confine dell'API. Le date sono stringhe `YYYY-MM-DD`, senza fuso orario.
 - Autenticazione: utente e password creati al primo avvio, token API generati dalla UI e salvati come hash.
+
+### Decisioni prese durante la fase 2 (`lifebook-core`)
+
+Punti che la specifica non fissava; sono implementati e coperti da test.
+
+- **Impostazioni aggiunte** (sezione 4 non le elencava): `livingCostWindow` (3, 6 o 12, default 12), `spendingDeviationThreshold` (0,5), `declaredBalanceChangeThreshold` (0,1), `staleAccountDays` (45). `inflationRate` esiste e il core espone `toRealRate`, ma nessun metodo la usa: `expectedReturn` è già reale e i flussi sono già in euro di oggi.
+- **Campo aggiunto ai conti**: `paymentEndDate` (passività, con validFrom), necessario per il costo della vita a regime (rate che terminano entro l'età target). Senza data la rata non termina mai.
+- **Periodi**: i confini sono le date in cui un conto di spesa ha una lettura. Se manca un giro il periodo si allunga. Un conto senza saldo di apertura (prima lettura) non produce variazione in quel periodo e genera un avviso.
+- **Conti archiviati**: dalla data `archivedAt` non contano più (saldi, trasferimenti, rendimenti).
+- **Conti `inferred` non letti in un periodo**: trasferimento 0 e la variazione cade nel periodo in cui viene letta, con gli interessi calcolati sui giorni tra le due letture. Il tasso usato è quello in vigore a fine periodo, capitalizzato annualmente effettivo.
+- **Passività con `countsAsLivingCost` disattivato**: si esclude dal costo della vita `max(capitale rimborsato, rata × numero di rate)`, così restano fuori anche gli interessi. Con il flag attivo la rata intera resta nella spesa.
+- **Rendimenti**: un record per coppia di letture consecutive dello stesso conto. Per gli immobili a reddito `taxRate` si applica solo all'affitto, non alla rivalutazione. La tassa sui titoli si applica solo ai guadagni positivi.
+- **Pensione pubblica**: se abilitata la considerano solo copertura per strati (flussi sicuri), ibrido e ponte. SWR, Fi-Number, Solo rendite, Coast e Barista non la usano mai. Con il toggle spento nessun metodo la usa, qualunque siano importo ed età inseriti.
+- **Copertura per strati**: il valore della spesa essenziale è quello del mese dell'ultimo periodo con dati. La pensione abilitata conta tra i flussi sicuri senza tener conto dell'età di inizio (il ponte invece la applica dall'età di inizio).
+- **Ponte**: l'età di uscita è `targetRetirementAge` (o l'età attuale se già superata). Il capitale attuale cresce al rendimento reale di portafoglio fino all'uscita e si confronta con il valore attuale dei prelievi, scontati allo stesso rendimento.
+- **Distanza**: per i metodi di flusso è in euro annui, per gli altri in euro di capitale (`kind` lo indica). Gli anni sono stimati solo per il Fi-Number e il Coast.
+- **Verdetto**: `determining` elenca i metodi verdi se il verdetto è verde, altrimenti i non verdi più vicini, quanti ne servono per arrivare al minimo.
+- **Affitti e dividendi incassati**: vanno inseriti come entrate (`IncomeItem`) se finiscono su un conto di spesa. Se non lo sono, il loro accredito abbassa artificialmente il costo della vita.
