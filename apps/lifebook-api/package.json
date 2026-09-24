@@ -10,7 +10,9 @@
     "dev": "tsx watch src/server.ts",
     "db:generate": "drizzle-kit generate",
     "test": "vitest run",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "backup": "tsx src/scripts/backup.ts",
+    "seed": "tsx src/scripts/seed.ts"
   },
   "dependencies": {
     "@fastify/swagger": "^9.9.0",

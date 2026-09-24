@@ -112,7 +112,16 @@ describe("dashboard", () => {
       token,
     );
     render(<App />);
-    expect(await screen.findByText(/senza contributi dichiarati/)).toBeTruthy();
+    expect((await screen.findAllByText(/senza contributi dichiarati/)).length).toBe(2); // in the list and in the month detail
+  });
+
+  it("shows how the living cost was deduced, month by month", async () => {
+    const token = await signIn(backend);
+    await seedLife(backend, token, today);
+    render(<App />);
+    expect(await screen.findByText("Come è calcolato il costo della vita")).toBeTruthy();
+    expect(screen.getByText(/Mostra il dettaglio per mese \(12\)/)).toBeTruthy();
+    expect(screen.getByText(/Un rendimento negativo non è una spesa/)).toBeTruthy();
   });
 
   it("changes the range of the charts with the selector", async () => {

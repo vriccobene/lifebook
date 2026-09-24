@@ -8,6 +8,7 @@ import type {
 } from "../api/types";
 import { DashboardCharts } from "../components/DashboardCharts";
 import { useRangeControl } from "../components/RangeControl";
+import { LivingCostDetail } from "../components/LivingCostDetail";
 import { MethodsTable, metricText } from "../components/MethodsTable";
 import { Banner, Card, EmptyState, Loading, QueryError } from "../components/ui";
 import { formatEuro, formatNumber } from "../lib/format";
@@ -164,6 +165,8 @@ export function Dashboard() {
           </span>
         </div>
       </Card>
+
+      <LivingCostDetail livingCost={cost} accountName={accountName} />
 
       <h2>Storico</h2>
       <DashboardCharts range={range} />

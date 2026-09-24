@@ -310,3 +310,13 @@ Punti che la specifica non fissava; sono implementati e coperti da test.
 - **Snapshot**: uno solo per conto e data (409 se esiste già; si modifica con `PATCH`).
 - **Risultati**: senza parametri usano la data di oggi. Con `from` e `to` (e `step` = `month` o `round`) restituiscono la serie, un punto per data calcolato as-of.
 - **Ascolto**: il server ascolta su 127.0.0.1 per default. Il logger non registra intestazioni di autenticazione né corpi delle richieste.
+
+### Decisioni prese durante le fasi 5 e 6 (`lifebook-web`, rifinitura)
+
+- **Import CSV**: rimandato. Il giro mensile non ha ancora il pulsante di import (sezione 8): i saldi si inseriscono a mano. La fase 4 resta da fare.
+- **Giro mensile**: i contributi si chiedono solo per i conti a contributi dichiarati che non sono conti di spesa né immobili. Il salvataggio aggiorna uno snapshot già presente alla data invece di duplicarlo. I contributi già salvati alla data si mostrano sommati e, se cambiano, vengono sostituiti da una sola voce.
+- **Grafici**: usano un punto per ogni data con una lettura (`step=round`), così compare anche l'ultima lettura.
+- **Cruscotto**: mostra anche il dettaglio mese per mese del costo della vita e le validazioni della sezione 5 in italiano, oltre a un avviso prima del salvataggio del giro se un conto a contributi dichiarati varia molto senza contributi.
+- **Interfaccia**: i numeri sono sempre raggruppati con il punto (1.234), a differenza di quanto fanno di default i browser italiani per i numeri a quattro cifre.
+- **Backup**: copia con l'API di backup di SQLite (consistente a database in uso), nome con data e ora locali, si tengono gli ultimi 30 file per default.
+- **Dati di esempio**: 24 mesi di una famiglia fittizia, generati con un seme fisso attraverso la stessa API; si caricano solo in un database vuoto.

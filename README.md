@@ -55,6 +55,15 @@ Al primo avvio crea l'utente con `POST /api/v1/auth/setup`. Poi `POST /api/v1/au
 
 Dopo aver modificato `src/db/schema.ts` genera la migrazione con `pnpm --filter @lifebook/api db:generate`: viene applicata all'avvio.
 
+## Backup e dati di esempio
+
+```
+pnpm --filter @lifebook/api backup                 # copia consistente in backups/ (ultimi 30)
+LIFEBOOK_DB=data/demo.sqlite pnpm --filter @lifebook/api seed   # dati fittizi, solo su database vuoto
+```
+
+Guida all'uso: [docs/guida-utente.md](docs/guida-utente.md). Architettura e sviluppo: [docs/architettura.md](docs/architettura.md).
+
 ## Dati
 
 I database SQLite, i file `.env`, i backup e i CSV sono ignorati da git. Nessun dato finanziario reale va nel repository.
