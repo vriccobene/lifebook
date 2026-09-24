@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { prepareDataset } from "./dataset";
-import { DAYS_PER_MONTH } from "./dates";
 import { accruedInterest, computeLivingCost } from "./livingCost";
 import {
   MONTH_ENDS_2026,
@@ -24,7 +23,8 @@ describe("living cost: spending of a period", () => {
     const result = livingCost(steadyLife({ months: 3 }));
     expect(result.periods).toHaveLength(3);
     for (const period of result.periods) expect(period.spending).toBe(1500);
-    expect(result.periods[0]!.monthlySpending).toBeCloseTo((1500 / 31) * DAYS_PER_MONTH, 9);
+    expect(result.periods[0]!.months).toBe(1);
+    expect(result.periods[0]!.monthlySpending).toBe(1500); // a 31-day month is not scaled
   });
 
   it("ignores market moves on declared accounts (regression: a loss is not spending)", () => {
@@ -179,33 +179,47 @@ describe("living cost: liabilities", () => {
 });
 
 describe("living cost: missing rounds and moving averages", () => {
-  it("lengthens the period and normalises on the actual days when a round is missing", () => {
+  it("lengthens the period and normalises on the months it covers when a month is missing", () => {
     const data = steadyLife({ months: 3 });
     data.snapshots = data.snapshots.filter((s) => s.date !== "2026-02-28");
     const result = livingCost(data);
     expect(result.periods).toHaveLength(2);
     const long = result.periods[1]!;
+    expect(long.months).toBe(2);
     expect(long.days).toBe(59);
     expect(long.spending).toBe(3000);
-    expect(long.monthlySpending).toBeCloseTo((3000 / 59) * DAYS_PER_MONTH, 9);
+    expect(long.monthlySpending).toBe(1500);
   });
 
-  it("computes 3, 6 and 12 month averages as total spending over actual days", () => {
+  it("computes 3, 6 and 12 month averages as total spending over the months covered", () => {
     const data = steadyLife({ months: 12 });
     // make the last three months more expensive
     let balance = 1000;
     data.snapshots = [{ ...data.snapshots[0]! }];
-    balance = 1000;
     MONTH_ENDS_2026.forEach((date, i) => {
       balance += 2000 - (i >= 9 ? 2100 : 1500);
       data.snapshots.push(snap("chk", date, balance));
     });
     const result = livingCost(data);
-    const days = (from: number) =>
-      result.periods.slice(from).reduce((total, p) => total + p.days, 0);
-    expect(result.averages[3]).toBeCloseTo(((3 * 2100) / days(9)) * DAYS_PER_MONTH, 9);
-    expect(result.averages[6]).toBeCloseTo(((3 * 1500 + 3 * 2100) / days(6)) * DAYS_PER_MONTH, 9);
-    expect(result.averages[12]).toBeCloseTo(((9 * 1500 + 3 * 2100) / days(0)) * DAYS_PER_MONTH, 9);
+    expect(result.averages[3]).toBeCloseTo(2100, 9);
+    expect(result.averages[6]).toBeCloseTo((3 * 1500 + 3 * 2100) / 6, 9);
+    expect(result.averages[12]).toBeCloseTo((9 * 1500 + 3 * 2100) / 12, 9);
+  });
+
+  it("keeps the window a whole number of months even from a short month (regression)", () => {
+    // Window ends on Feb 28: three months are Dec, Jan, Feb, never four
+    const data = steadyLife({ months: 2 });
+    data.snapshots.unshift(snap("chk", "2025-11-30", 1000));
+    data.snapshots = data.snapshots.map((s) =>
+      s.date === "2025-12-31" ? { ...s, balance: 0 } : s,
+    );
+    const periods = livingCost(data, "2026-02-28").periods;
+    expect(periods.map((p) => p.months)).toEqual([1, 1, 1]);
+    const spent = periods.map((p) => p.spending);
+    expect(livingCost(data, "2026-02-28").averages[3]).toBeCloseTo(
+      spent.reduce((a, b) => a + b, 0) / 3,
+      9,
+    );
   });
 
   it("uses the window chosen in the settings as the reference (default 12)", () => {
@@ -333,5 +347,82 @@ describe("living cost: validations", () => {
     data.accounts.push(account("bro", "brokerage"));
     data.snapshots.push(snap("bro", "2026-01-31", 1000));
     expect(livingCost(data).warnings.map((w) => w.code)).toContain("no_spending_account");
+  });
+});
+
+describe("living cost: periods are calendar months", () => {
+  const monthlyReadings = (days: string[]): LifebookData => {
+    // 2000 salary on the last day of the month, 1500 spent: the balance grows 500 a month
+    const data = emptyData();
+    data.accounts.push(spendingAccount());
+    data.incomeItems.push(salary(2000, "2026-01-31"));
+    data.snapshots.push(snap("chk", "2025-12-31", 1000));
+    days.forEach((date, i) => data.snapshots.push(snap("chk", date, 1000 + 500 * (i + 1))));
+    return data;
+  };
+
+  it("makes no difference whether the reading is on the 29th or the 31st (regression)", () => {
+    const result = livingCost(monthlyReadings(["2026-01-31", "2026-02-27", "2026-03-31"]));
+    expect(result.periods.map((p) => p.months)).toEqual([1, 1, 1]);
+    // no short periods: one per month
+    expect(result.periods.map((p) => p.to)).toEqual(["2026-01-31", "2026-02-27", "2026-03-31"]);
+  });
+
+  it("never creates a period shorter than a month from two spending accounts read on different days", () => {
+    const data = steadyLife({ months: 3 });
+    data.accounts.push(spendingAccount("chk2"));
+    data.snapshots.push(
+      snap("chk2", "2025-12-30", 100),
+      snap("chk2", "2026-01-29", 100),
+      snap("chk2", "2026-02-26", 100),
+      snap("chk2", "2026-03-30", 100),
+    );
+    const result = livingCost(data);
+    // one boundary per month, on the latest reading of that month
+    expect(result.periods.map((p) => p.to)).toEqual(["2026-01-31", "2026-02-28", "2026-03-31"]);
+    expect(result.periods.every((p) => p.months === 1)).toBe(true);
+  });
+
+  it("recovers a late or early reading the following month", () => {
+    // True spending is 1500 every month. February is read on the 20th, before the salary of the 28th.
+    const data = emptyData();
+    data.accounts.push(spendingAccount());
+    data.incomeItems.push(salary(2000, "2026-01-31"));
+    data.snapshots.push(
+      snap("chk", "2025-12-31", 1000),
+      snap("chk", "2026-01-31", 1500),
+      snap("chk", "2026-02-20", 1500 - 1500 * (20 / 28) + 0), // partway through February
+      snap("chk", "2026-03-31", 2500),
+    );
+    const result = livingCost(data);
+    expect(result.periods.map((p) => p.months)).toEqual([1, 1, 1]);
+    // whatever one month mis-states is recovered by the next: the two months add up to the truth
+    const [, feb, mar] = result.periods;
+    expect(feb!.spending + mar!.spending).toBeCloseTo(3000, 6);
+  });
+
+  it("counts income between the two cut-off dates, so a salary is neither lost nor counted twice", () => {
+    const data = emptyData();
+    data.accounts.push(spendingAccount());
+    // salary on the 25th; readings on the 10th of each month
+    data.incomeItems.push(salary(2000, "2026-01-25"));
+    data.snapshots.push(
+      snap("chk", "2026-01-10", 0),
+      snap("chk", "2026-02-10", 2000),
+      snap("chk", "2026-03-10", 4000),
+    );
+    const result = livingCost(data);
+    expect(result.periods.map((p) => p.income)).toEqual([2000, 2000]);
+  });
+
+  it("uses the number of calendar months, not the days, to spread a month without readings", () => {
+    const data = steadyLife({ months: 4 });
+    data.snapshots = data.snapshots.filter(
+      (s) => s.date !== "2026-02-28" && s.date !== "2026-03-31",
+    );
+    const [first, long] = livingCost(data).periods;
+    expect(first!.months).toBe(1);
+    expect(long!.months).toBe(3);
+    expect(long!.monthlySpending).toBe(1500);
   });
 });

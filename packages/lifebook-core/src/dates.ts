@@ -71,6 +71,17 @@ export function monthOf(date: IsoDate): IsoMonth {
   return date.slice(0, 7);
 }
 
+/** Months since year 0, so that month differences are plain subtractions. */
+export function monthIndex(date: IsoDate): number {
+  dayNumber(date);
+  return Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7)) - 1;
+}
+
+/** Calendar months from `a` to `b`, ignoring the day of the month. */
+export function monthsBetween(a: IsoDate, b: IsoDate): number {
+  return monthIndex(b) - monthIndex(a);
+}
+
 export function endOfMonth(month: IsoMonth): IsoDate {
   const match = /^(\d{4})-(\d{2})$/.exec(month);
   if (!match) throw new RangeError(`Invalid ISO month: ${month}`);

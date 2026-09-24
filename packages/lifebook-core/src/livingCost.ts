@@ -1,12 +1,24 @@
 import { contributionsBetween, isActive, paramsAt, readingAt, sum, type Dataset } from "./dataset";
-import { DAYS_PER_MONTH, DAYS_PER_YEAR, addMonths, daysBetween, type IsoDate } from "./dates";
+import {
+  DAYS_PER_YEAR,
+  addMonths,
+  daysBetween,
+  monthIndex,
+  monthOf,
+  monthsBetween,
+  type IsoDate,
+} from "./dates";
 import { incomeBetween } from "./income";
 import type { Account, Warning } from "./types";
 
 export interface PeriodSpending {
+  /** Cut-off date of the previous month with readings. */
   from: IsoDate;
+  /** Cut-off date of this month: the latest reading of a spending account in it. */
   to: IsoDate;
   days: number;
+  /** Calendar months covered: 1, or more when a month has no reading. */
+  months: number;
   income: number;
   /** Sum of balance changes of the spending accounts. */
   spendingAccountsDelta: number;
@@ -14,7 +26,7 @@ export interface PeriodSpending {
   transfers: number;
   transfersByAccount: { accountId: string; amount: number }[];
   spending: number;
-  /** Spending normalised to a 30.4375-day month. */
+  /** Spending per calendar month: `spending / months`. */
   monthlySpending: number;
   warnings: Warning[];
 }
@@ -44,19 +56,23 @@ function warning(code: Warning["code"], extra: Partial<Omit<Warning, "code">> = 
 }
 
 /**
- * Period boundaries: every date on which an account that is a spending account on that date has a reading.
- * Consecutive boundaries delimit a period, so a missed round simply makes the next period longer.
+ * Period boundaries. A period is always a calendar month: each month in which a spending account
+ * has a reading gives one boundary, dated at the latest such reading. A reading on the 29th or on
+ * the 31st therefore makes no difference, and whatever it misses is recovered the next month.
+ * A month without readings makes the next period span two (or more) months.
  */
 export function roundDates(ds: Dataset): IsoDate[] {
-  const dates = new Set<IsoDate>();
+  const cutoffByMonth = new Map<string, IsoDate>();
   for (const account of ds.accounts) {
     for (const reading of ds.readings.get(account.id) ?? []) {
-      if (isActive(account, reading.date) && paramsAt(account, reading.date).isSpendingAccount) {
-        dates.add(reading.date);
-      }
+      if (!isActive(account, reading.date) || !paramsAt(account, reading.date).isSpendingAccount)
+        continue;
+      const month = monthOf(reading.date);
+      const current = cutoffByMonth.get(month);
+      if (current === undefined || reading.date > current) cutoffByMonth.set(month, reading.date);
     }
   }
-  return [...dates].sort();
+  return [...cutoffByMonth.values()].sort();
 }
 
 /** Transfer towards a non-spending account during (from, to]; null when the account does not take part. */
@@ -70,13 +86,12 @@ function transferFor(
   if (account.type === "real_estate") return null; // revaluations are not transfers
 
   const params = paramsAt(account, to);
-  const days = daysBetween(from, to);
 
   if (account.type === "liability") {
     const capitalRepaid = sum(contributionsBetween(ds, account.id, from, to).map((c) => c.amount));
     // When the installment is living cost the repaid capital stays in the spending.
     if (account.countsAsLivingCost) return 0;
-    const installments = Math.round(days / DAYS_PER_MONTH) * (params.monthlyPayment ?? 0);
+    const installments = monthsBetween(from, to) * (params.monthlyPayment ?? 0);
     return Math.max(capitalRepaid, installments);
   }
 
@@ -123,6 +138,7 @@ function transferFor(
 function computePeriod(ds: Dataset, from: IsoDate, to: IsoDate): PeriodSpending {
   const warnings: Warning[] = [];
   const days = daysBetween(from, to);
+  const months = monthsBetween(from, to);
   const income = incomeBetween(ds.incomeItems, from, to);
 
   let spendingAccountsDelta = 0;
@@ -160,41 +176,36 @@ function computePeriod(ds: Dataset, from: IsoDate, to: IsoDate): PeriodSpending 
     from,
     to,
     days,
+    months,
     income,
     spendingAccountsDelta,
     transfers,
     transfersByAccount,
     spending,
-    monthlySpending: (spending / days) * DAYS_PER_MONTH,
+    monthlySpending: spending / months,
     warnings,
   };
 }
 
+/** Average per month over the last `months` calendar months: total over the months the periods cover. */
 function windowAverage(
   periods: readonly PeriodSpending[],
   months: number,
   pick: (p: PeriodSpending) => number,
-): { value: number | null; coveredDays: number; windowDays: number } {
+): { value: number | null; coveredMonths: number } {
   const last = periods[periods.length - 1];
-  if (!last) return { value: null, coveredDays: 0, windowDays: 0 };
-  const start = addMonths(last.to, -months);
-  const included = periods.filter((p) => p.to > start);
-  const coveredDays = sum(included.map((p) => p.days));
-  if (included.length === 0 || coveredDays === 0)
-    return { value: null, coveredDays: 0, windowDays: 0 };
-  return {
-    value: (sum(included.map(pick)) / coveredDays) * DAYS_PER_MONTH,
-    coveredDays,
-    windowDays: daysBetween(start, last.to),
-  };
+  if (!last) return { value: null, coveredMonths: 0 };
+  const included = periods.filter((p) => monthIndex(p.to) > monthIndex(last.to) - months);
+  const coveredMonths = sum(included.map((p) => p.months));
+  if (included.length === 0) return { value: null, coveredMonths: 0 };
+  return { value: sum(included.map(pick)) / coveredMonths, coveredMonths };
 }
 
 function flagOutliers(periods: PeriodSpending[], threshold: number): void {
   if (periods.length < 3) return;
   for (const period of periods) {
     const others = periods.filter((p) => p !== period);
-    const days = sum(others.map((p) => p.days));
-    const average = (sum(others.map((p) => p.spending)) / days) * DAYS_PER_MONTH;
+    const average = sum(others.map((p) => p.spending)) / sum(others.map((p) => p.months));
     if (average > 0 && Math.abs(period.monthlySpending - average) / average > threshold) {
       period.warnings.push(
         warning("spending_outlier", {
@@ -263,8 +274,8 @@ export function computeLivingCost(ds: Dataset): LivingCostResult {
   };
   const referenceWindow = ds.settings.livingCostWindow;
   const reference = windowAverage(periods, referenceWindow, (p) => p.spending);
-  if (reference.value !== null && reference.coveredDays < reference.windowDays * 0.75) {
-    warnings.push(warning("insufficient_history", { detail: reference.coveredDays }));
+  if (reference.value !== null && reference.coveredMonths < referenceWindow * 0.75) {
+    warnings.push(warning("insufficient_history", { detail: reference.coveredMonths }));
   }
   const income = windowAverage(periods, referenceWindow, (p) => p.income);
 

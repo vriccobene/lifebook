@@ -263,7 +263,7 @@ Prese in fase di revisione della specifica. Dove contraddicono le sezioni preced
 ### Formule
 
 - Interessi dei conti `inferred`: al netto di `taxRate`, perché il saldo cresce del netto accreditato.
-- Media mobile: spesa totale della finestra divisa per i giorni effettivi, per 30,4375.
+- Media mobile: spesa totale della finestra divisa per il numero di mesi coperti (vedi «Periodi sempre mensili»).
 - Rendimento annualizzato: `(1+r)^(365/giorni) − 1`. Il netto applica `taxRate` solo alla parte positiva.
 - Entrate ricorrenti: periodicità mensile, trimestrale o annuale, con un importo per ogni scadenza che cade nel periodo.
 - Rendite passive nette: `saldo × passiveYield × (1 − taxRate)` per conto, più gli interessi dei depositi, senza deflazione.
@@ -289,10 +289,10 @@ Punti che la specifica non fissava; sono implementati e coperti da test.
 
 - **Impostazioni aggiunte** (sezione 4 non le elencava): `livingCostWindow` (3, 6 o 12, default 12), `spendingDeviationThreshold` (0,5), `declaredBalanceChangeThreshold` (0,1), `staleAccountDays` (45). `inflationRate` esiste e il core espone `toRealRate`, ma nessun metodo la usa: `expectedReturn` è già reale e i flussi sono già in euro di oggi.
 - **Campo aggiunto ai conti**: `paymentEndDate` (passività, con validFrom), necessario per il costo della vita a regime (rate che terminano entro l'età target). Senza data la rata non termina mai.
-- **Periodi**: i confini sono le date in cui un conto di spesa ha una lettura. Se manca un giro il periodo si allunga. Un conto senza saldo di apertura (prima lettura) non produce variazione in quel periodo e genera un avviso.
+- **Periodi sempre mensili**: un periodo è un mese di calendario. Ogni mese in cui un conto di spesa ha una lettura dà un confine, datato all'ultima lettura di quel mese. Leggere il 29 o il 31 non cambia nulla e non nascono mai periodi più corti: la differenza si recupera il mese dopo. Entrate e contributi si contano tra le due date di taglio, così uno stipendio non va perso né contato due volte. Se un mese non ha letture, il periodo successivo copre più mesi e la spesa si divide per il numero di mesi (non per i giorni). Questo modifica la frase della sezione 5 «normalizzata sui giorni effettivi». Un conto senza saldo di apertura (prima lettura) non produce variazione in quel periodo e genera un avviso.
 - **Conti archiviati**: dalla data `archivedAt` non contano più (saldi, trasferimenti, rendimenti).
 - **Conti `inferred` non letti in un periodo**: trasferimento 0 e la variazione cade nel periodo in cui viene letta, con gli interessi calcolati sui giorni tra le due letture. Il tasso usato è quello in vigore a fine periodo, capitalizzato annualmente effettivo.
-- **Passività con `countsAsLivingCost` disattivato**: si esclude dal costo della vita `max(capitale rimborsato, rata × numero di rate)`, così restano fuori anche gli interessi. Con il flag attivo la rata intera resta nella spesa.
+- **Passività con `countsAsLivingCost` disattivato**: si esclude dal costo della vita `max(capitale rimborsato, rata × numero di rate)`, così restano fuori anche gli interessi. Con il flag attivo la rata intera resta nella spesa. Il numero di rate è il numero di mesi del periodo.
 - **Rendimenti**: un record per coppia di letture consecutive dello stesso conto. Per gli immobili a reddito `taxRate` si applica solo all'affitto, non alla rivalutazione. La tassa sui titoli si applica solo ai guadagni positivi.
 - **Pensione pubblica**: se abilitata la considerano solo copertura per strati (flussi sicuri), ibrido e ponte. SWR, Fi-Number, Solo rendite, Coast e Barista non la usano mai. Con il toggle spento nessun metodo la usa, qualunque siano importo ed età inseriti.
 - **Copertura per strati**: il valore della spesa essenziale è quello del mese dell'ultimo periodo con dati. La pensione abilitata conta tra i flussi sicuri senza tener conto dell'età di inizio (il ponte invece la applica dall'età di inizio).

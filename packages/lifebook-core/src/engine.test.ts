@@ -76,8 +76,8 @@ describe("full scenario", () => {
     const result = computeAsOf(richScenario(), "2026-12-31");
     expect(result.livingCost.periods).toHaveLength(12);
     for (const period of result.livingCost.periods) expect(period.spending).toBeCloseTo(2_000, 6);
-    expect(result.livingCost.referenceMonthly).toBeCloseTo((24_000 / 365) * (365.25 / 12), 6);
-    expect(result.livingCost.incomeMonthly).toBeCloseTo((36_000 / 365) * (365.25 / 12), 6);
+    expect(result.livingCost.referenceMonthly).toBeCloseTo(2_000, 6);
+    expect(result.livingCost.incomeMonthly).toBeCloseTo(3_000, 6);
   });
 
   it("evaluates all methods and the verdict", () => {
