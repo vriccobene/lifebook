@@ -36,3 +36,7 @@ Su un solo pacchetto: `pnpm --filter @lifebook/core test`.
 ## Dati
 
 I database SQLite, i file `.env`, i backup e i CSV sono ignorati da git. Nessun dato finanziario reale va nel repository.
+
+## Hook pre-commit
+
+`pnpm install` attiva `.githooks/pre-commit`, che esegue `pnpm check` prima di ogni commit. Se qualcosa è rosso il commit viene bloccato.

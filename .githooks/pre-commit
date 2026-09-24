@@ -1,0 +1,3 @@
+#!/bin/sh
+# Blocks the commit unless format, lint, typecheck and tests are green.
+exec pnpm check
