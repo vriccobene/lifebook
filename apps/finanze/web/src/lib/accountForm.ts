@@ -105,3 +105,57 @@ export function entrySummary(entry: Record<string, unknown>): string[] {
   if (typeof entry.paymentEndDate === "string") parts.push(`ultima rata ${entry.paymentEndDate}`);
   return parts;
 }
+
+type DatedEntry = { id: string; validFrom: string; isSpendingAccount?: boolean };
+
+/**
+ * The flags in force at `date`, to prefill a new dated entry: the form sends both flags,
+ * so starting from the defaults would silently reset them.
+ */
+export function flagsAt(
+  entries: (DatedEntry & { inInvestableCapital?: boolean })[],
+  type: AccountType,
+  realEstateUse: string | null,
+  date: string,
+): { isSpendingAccount: boolean; inInvestableCapital: boolean } {
+  const flags = {
+    isSpendingAccount: false,
+    inInvestableCapital: defaultInvestable(type, realEstateUse),
+  };
+  const applicable = entries
+    .filter((e) => e.validFrom <= date)
+    .sort((a, b) => (a.validFrom < b.validFrom ? -1 : a.validFrom > b.validFrom ? 1 : 0));
+  for (const entry of applicable) {
+    if (entry.isSpendingAccount !== undefined) flags.isSpendingAccount = entry.isSpendingAccount;
+    if (entry.inInvestableCapital !== undefined)
+      flags.inInvestableCapital = entry.inInvestableCapital;
+  }
+  return flags;
+}
+
+/** The first date the account has parameters for: "since always" for a flag. */
+export function firstParamsDate(entries: DatedEntry[], fallback: string): string {
+  return entries.reduce((min, e) => (e.validFrom < min ? e.validFrom : min), fallback);
+}
+
+/**
+ * The writes that make the spending flag `value` from `from` onward: every later entry that
+ * sets the flag is changed, and an entry at `from` is added when none exists.
+ */
+export function spendingFlagWrites(
+  entries: DatedEntry[],
+  from: string,
+  value: boolean,
+): { update: string[]; create: boolean } {
+  return {
+    update: entries
+      .filter(
+        (e) =>
+          e.validFrom >= from &&
+          (e.validFrom === from ||
+            (e.isSpendingAccount !== undefined && e.isSpendingAccount !== value)),
+      )
+      .map((e) => e.id),
+    create: !entries.some((e) => e.validFrom === from),
+  };
+}

@@ -9,6 +9,9 @@ import {
   emptyParamsForm,
   entrySummary,
   entryToParamsForm,
+  firstParamsDate,
+  flagsAt,
+  spendingFlagWrites,
   paramsFormToEntry,
   type ParamsForm,
 } from "../lib/accountForm";
@@ -223,9 +226,29 @@ function AccountDetail({ account }: { account: Account }) {
   const [counts, setCounts] = useState(account.countsAsLivingCost);
   const [editing, setEditing] = useState<{ id: string; form: ParamsForm } | null>(null);
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
-  const [form, setForm] = useState<ParamsForm>(() =>
-    emptyParamsForm(account.type, account.realEstateUse, todayIso()),
+  const patchParams = useWrite<{ id: string; entry: Record<string, unknown> }>(
+    "PATCH",
+    ({ id }) => `/accounts/${account.id}/params/${id}`,
+    ({ entry }) => entry,
   );
+  const [form, setForm] = useState<ParamsForm>(() => ({
+    ...emptyParamsForm(account.type, account.realEstateUse, todayIso()),
+    ...flagsAt(account.params, account.type, account.realEstateUse, todayIso()),
+  }));
+  const [spending, setSpending] = useState(
+    () =>
+      flagsAt(account.params, account.type, account.realEstateUse, todayIso()).isSpendingAccount,
+  );
+  const [spendingFrom, setSpendingFrom] = useState(() =>
+    firstParamsDate(account.params, "2000-01-01"),
+  );
+  const saveSpending = async () => {
+    const writes = spendingFlagWrites(account.params, spendingFrom, spending);
+    for (const id of writes.update)
+      await patchParams.mutateAsync({ id, entry: { isSpendingAccount: spending } });
+    if (writes.create)
+      await addParams.mutateAsync({ validFrom: spendingFrom, isSpendingAccount: spending });
+  };
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
@@ -336,6 +359,46 @@ function AccountDetail({ account }: { account: Account }) {
             L'eliminazione è possibile solo per conti senza saldi né contributi: negli altri casi
             archivia il conto.
           </p>
+
+          {(account.type === "checking" || account.type === "deposit") && (
+            <>
+              <h3>Conto di spesa</h3>
+              <div className="row">
+                <Field
+                  label="Conto di spesa"
+                  check
+                  hint="Il conto da cui paghi la vita quotidiana."
+                >
+                  <input
+                    type="checkbox"
+                    checked={spending}
+                    onChange={(e) => setSpending(e.target.checked)}
+                  />
+                </Field>
+                <Field
+                  label="Dal"
+                  hint="Di default dall'inizio dello storico, così vale anche per i mesi passati."
+                >
+                  <input
+                    type="date"
+                    value={spendingFrom}
+                    onChange={(e) => setSpendingFrom(e.target.value)}
+                    required
+                  />
+                </Field>
+                <button
+                  onClick={() =>
+                    attempt(
+                      saveSpending,
+                      spending ? "Conto di spesa impostato." : "Conto di spesa tolto.",
+                    )
+                  }
+                >
+                  Applica
+                </button>
+              </div>
+            </>
+          )}
 
           <h3>Storico dei parametri</h3>
           {entries.length === 0 ? (

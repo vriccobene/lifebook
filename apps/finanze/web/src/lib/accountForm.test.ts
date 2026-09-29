@@ -4,6 +4,9 @@ import {
   emptyParamsForm,
   entrySummary,
   entryToParamsForm,
+  firstParamsDate,
+  flagsAt,
+  spendingFlagWrites,
   paramsFormToEntry,
 } from "./accountForm";
 
@@ -90,5 +93,34 @@ describe("pension fund", () => {
   it("is not investable by default", () => {
     expect(defaultInvestable("pension_fund", null)).toBe(false);
     expect(emptyParamsForm("pension_fund", null, "2026-01-01").inInvestableCapital).toBe(false);
+  });
+});
+
+describe("spending account after creation", () => {
+  const entries = [
+    { id: "a", validFrom: "2025-01-01", isSpendingAccount: false, inInvestableCapital: false },
+    { id: "b", validFrom: "2026-01-01", taxRate: 0.26 },
+    { id: "c", validFrom: "2026-06-01", isSpendingAccount: false },
+  ];
+
+  it("prefills a new dated entry with the flags in force (regression: adding a rate reset them)", () => {
+    expect(flagsAt(entries, "deposit", null, "2026-03-01")).toEqual({
+      isSpendingAccount: false,
+      inInvestableCapital: false,
+    });
+    expect(flagsAt([], "deposit", null, "2026-03-01").inInvestableCapital).toBe(true);
+  });
+
+  it("turns the flag on since always, overriding the later entries that turned it off", () => {
+    const from = firstParamsDate(entries, "2099-01-01");
+    expect(from).toBe("2025-01-01");
+    expect(spendingFlagWrites(entries, from, true)).toEqual({ update: ["a", "c"], create: false });
+  });
+
+  it("adds an entry at the chosen date when there is none", () => {
+    expect(spendingFlagWrites(entries, "2026-03-01", true)).toEqual({
+      update: ["c"],
+      create: true,
+    });
   });
 });

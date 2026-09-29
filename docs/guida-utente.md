@@ -56,7 +56,7 @@ Funziona anche con l'app avviata e non tocca i dati. Chi può eseguire questi co
 ## Prima configurazione
 
 1. **Conti.** Crea un conto per ogni saldo che vuoi seguire: conti correnti, depositi, titoli, investimenti esterni, immobili, mutui e altre passività.
-   - Marca come **conto di spesa** quello (o quelli) da cui paghi la vita quotidiana. È la base del calcolo del costo della vita.
+   - Marca come **conto di spesa** quello (o quelli) da cui paghi la vita quotidiana. È la base del calcolo del costo della vita. Puoi farlo anche dopo, da **Conti → Dettagli → Conto di spesa**: la data «Dal» parte di default dall'inizio dello storico, così il costo della vita si ricalcola anche per i mesi passati.
    - Per i **titoli** i contributi (versamenti e prelievi) li inserisci tu ogni mese. Per i **depositi** vengono dedotti dal saldo, conoscendo il tasso.
    - Un **fondo pensione** ha contributi dichiarati come i titoli, ma per default resta **fuori dal capitale investibile**, perché è vincolato fino al pensionamento. Se vuoi contarlo, attiva «Nel capitale investibile» nei suoi parametri (anche da una data in poi).
 - Per un **immobile** scegli se è abitazione principale (esclusa dal capitale investibile) o a reddito.
