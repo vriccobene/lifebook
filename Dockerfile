@@ -9,17 +9,17 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
-COPY apps/lifebook-api/package.json apps/lifebook-api/
-COPY apps/lifebook-web/package.json apps/lifebook-web/
-COPY packages/lifebook-core/package.json packages/lifebook-core/
+COPY apps/finanze/api/package.json apps/finanze/api/
+COPY apps/finanze/web/package.json apps/finanze/web/
+COPY apps/finanze/core/package.json apps/finanze/core/
 
 # ---- API ----
 FROM base AS api-build
 # `prepare` sets a git hook path: not needed (and no git) in the image.
-RUN pnpm install --frozen-lockfile --ignore-scripts --filter @lifebook/api... \
+RUN pnpm install --frozen-lockfile --ignore-scripts --filter @lifebook/finanze-api... \
   && pnpm rebuild better-sqlite3
-COPY packages/lifebook-core packages/lifebook-core
-COPY apps/lifebook-api apps/lifebook-api
+COPY apps/finanze/core apps/finanze/core
+COPY apps/finanze/api apps/finanze/api
 
 FROM node:22-bookworm-slim AS api
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH NODE_ENV=production \
@@ -28,7 +28,7 @@ RUN corepack enable && mkdir -p /data /backups && chown node:node /data /backups
 WORKDIR /app
 COPY --from=api-build --chown=node:node /app /app
 USER node
-WORKDIR /app/apps/lifebook-api
+WORKDIR /app/apps/finanze/api
 VOLUME ["/data", "/backups"]
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
@@ -37,12 +37,12 @@ CMD ["pnpm", "start"]
 
 # ---- Web ----
 FROM base AS web-build
-RUN pnpm install --frozen-lockfile --ignore-scripts --filter @lifebook/web...
-COPY packages/lifebook-core packages/lifebook-core
-COPY apps/lifebook-web apps/lifebook-web
-RUN pnpm --filter @lifebook/web exec vite build
+RUN pnpm install --frozen-lockfile --ignore-scripts --filter @lifebook/finanze-web...
+COPY apps/finanze/core apps/finanze/core
+COPY apps/finanze/web apps/finanze/web
+RUN pnpm --filter @lifebook/finanze-web exec vite build
 
 FROM nginx:1.27-alpine AS web
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=web-build /app/apps/lifebook-web/dist /usr/share/nginx/html
+COPY --from=web-build /app/apps/finanze/web/dist /usr/share/nginx/html
 EXPOSE 80

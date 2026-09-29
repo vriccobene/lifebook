@@ -27,18 +27,18 @@ Monorepo con pnpm workspaces e TypeScript ovunque.
 ```
 /
 ├── apps/
-│   ├── lifebook-web/      # frontend React (Vite)
-│   └── lifebook-api/      # backend REST (Fastify)
-├── packages/
-│   └── lifebook-core/     # motore di calcolo in TS puro, senza I/O
+│   └── finanze/          # Lifebook Finanze, una delle app di Lifebook
+│       ├── web/          # frontend React (Vite)       → @lifebook/finanze-web
+│       ├── api/          # backend REST (Fastify)      → @lifebook/finanze-api
+│       └── core/         # motore di calcolo in TS puro, senza I/O → @lifebook/finanze-core
 └── docs/
 ```
 
-Altre webapp e altri backend futuri diventano nuove cartelle in `apps/`.
+Lifebook è il contenitore; ogni app (Finanze oggi, altre in futuro) è una cartella in `apps/`.
 
-- **`lifebook-core`**: funzioni pure e deterministiche. Riceve dati e configurazione, restituisce risultati. Nessun accesso a DB, rete o file. Contiene tutta la logica descritta in questo documento ed è coperto da test unitari.
-- **`lifebook-api`**: REST con Fastify e SQLite (file locale) tramite Drizzle e better-sqlite3. Validazione con zod. Login locale per la UI e token API per accessi esterni. Espone i dati e i risultati del motore. La REST API è un requisito di prima classe: la web app la usa come unico canale verso i dati.
-- **`lifebook-web`**: React con Vite, TanStack Query e Recharts. In italiano.
+- **`finanze-core`**: funzioni pure e deterministiche. Riceve dati e configurazione, restituisce risultati. Nessun accesso a DB, rete o file. Contiene tutta la logica descritta in questo documento ed è coperto da test unitari.
+- **`finanze-api`**: REST con Fastify e SQLite (file locale) tramite Drizzle e better-sqlite3. Validazione con zod. Login locale per la UI e token API per accessi esterni. Espone i dati e i risultati del motore. La REST API è un requisito di prima classe: la web app la usa come unico canale verso i dati.
+- **`finanze-web`**: React con Vite, TanStack Query e Recharts. In italiano.
 - Tutto gira in locale. Nessun dato finanziario esce dalla macchina.
 
 ## 4. Modello dati
@@ -230,7 +230,7 @@ La UI mensile mostra tutti i conti in un'unica schermata con il saldo precedente
 
 ## 10. REST API
 
-Prefisso `/api/v1`, token nell'header `Authorization: Bearer`. Risorse: `accounts`, `snapshots`, `contributions`, `income-items`, `settings`, `essential-spending`, `imports/csv`, `results/living-cost`, `results/returns`, `results/methods`, `results/verdict`. Le risorse `results/*` invocano `lifebook-core` e accettano il parametro `asOf` (singola data) oppure `from`, `to` e `step` per le serie storiche. Ogni risorsa scrivibile accetta e restituisce la data del dato. Documentazione OpenAPI generata dagli schemi zod.
+Prefisso `/api/v1`, token nell'header `Authorization: Bearer`. Risorse: `accounts`, `snapshots`, `contributions`, `income-items`, `settings`, `essential-spending`, `imports/csv`, `results/living-cost`, `results/returns`, `results/methods`, `results/verdict`. Le risorse `results/*` invocano `finanze-core` e accettano il parametro `asOf` (singola data) oppure `from`, `to` e `step` per le serie storiche. Ogni risorsa scrivibile accetta e restituisce la data del dato. Documentazione OpenAPI generata dagli schemi zod.
 
 ## 11. Qualità
 
@@ -283,7 +283,7 @@ Contano i metodi 1-9, con Lean/Regular/Fat come un solo metodo (verde se Regular
 - Il DB salva il denaro in centesimi interi. Il core usa numeri in euro e la conversione avviene al confine dell'API. Le date sono stringhe `YYYY-MM-DD`, senza fuso orario.
 - Autenticazione: utente e password creati al primo avvio, token API generati dalla UI e salvati come hash.
 
-### Decisioni prese durante la fase 2 (`lifebook-core`)
+### Decisioni prese durante la fase 2 (`finanze-core`)
 
 Punti che la specifica non fissava; sono implementati e coperti da test.
 
@@ -301,7 +301,7 @@ Punti che la specifica non fissava; sono implementati e coperti da test.
 - **Verdetto**: `determining` elenca i metodi verdi se il verdetto è verde, altrimenti i non verdi più vicini, quanti ne servono per arrivare al minimo.
 - **Affitti e dividendi incassati**: vanno inseriti come entrate (`IncomeItem`) se finiscono su un conto di spesa. Se non lo sono, il loro accredito abbassa artificialmente il costo della vita.
 
-### Decisioni prese durante la fase 3 (`lifebook-api`)
+### Decisioni prese durante la fase 3 (`finanze-api`)
 
 - **Endpoint aggiunto**: `results/net-worth` (patrimonio netto, composizione per tipo di conto e capitale investibile, con `asOf` o serie). Serve al primo grafico del cruscotto, che la sezione 10 non copriva. `results/living-cost` restituisce anche la ripartizione spesa essenziale/discrezionale.
 - **Autenticazione**: `POST /auth/setup` crea l'unico utente (una sola volta), `POST /auth/login` emette un token di sessione di 30 giorni, `POST /auth/tokens` un token API senza scadenza (mostrato una sola volta). Entrambi si usano come `Authorization: Bearer` e sono salvati solo come hash SHA-256. Le password usano scrypt.
@@ -311,7 +311,7 @@ Punti che la specifica non fissava; sono implementati e coperti da test.
 - **Risultati**: senza parametri usano la data di oggi. Con `from` e `to` (e `step` = `month` o `round`) restituiscono la serie, un punto per data calcolato as-of.
 - **Ascolto**: il server ascolta su 127.0.0.1 per default. Il logger non registra intestazioni di autenticazione né corpi delle richieste.
 
-### Decisioni prese durante le fasi 5 e 6 (`lifebook-web`, rifinitura)
+### Decisioni prese durante le fasi 5 e 6 (`finanze-web`, rifinitura)
 
 - **Import CSV**: rimandato. Il giro mensile non ha ancora il pulsante di import (sezione 8): i saldi si inseriscono a mano. La fase 4 resta da fare.
 - **Giro mensile**: i contributi si chiedono solo per i conti a contributi dichiarati che non sono conti di spesa né immobili. Il salvataggio aggiorna uno snapshot già presente alla data invece di duplicarlo. I contributi già salvati alla data si mostrano sommati e, se cambiano, vengono sostituiti da una sola voce.

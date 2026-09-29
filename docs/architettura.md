@@ -3,10 +3,11 @@
 ## Struttura
 
 ```
-packages/lifebook-core/   motore di calcolo in TypeScript puro, senza I/O
-apps/lifebook-api/        REST (Fastify) su SQLite (Drizzle + better-sqlite3)
-apps/lifebook-web/        interfaccia React (Vite, TanStack Query, Recharts)
-docs/                     specifiche e documentazione
+apps/finanze/              Lifebook Finanze
+  core/                    motore di calcolo in TypeScript puro, senza I/O
+  api/                     REST (Fastify) su SQLite (Drizzle + better-sqlite3)
+  web/                     interfaccia React (Vite, TanStack Query, Recharts)
+docs/                      specifiche e documentazione
 ```
 
 Il core non importa nulla dall'API, dalla web app né da librerie di I/O: una regola ESLint lo impedisce. L'API e la web app lo importano direttamente dai sorgenti TypeScript (pacchetto interno), quindi non serve compilarlo.
@@ -23,9 +24,9 @@ Tutte le funzioni sono pure. Il punto d'ingresso è `computeAsOf(data, asOf)`, c
 
 ### Aggiungere un metodo (ad esempio Monte Carlo)
 
-1. Implementa `Method` in `packages/lifebook-core/src/methods/` (deve essere puro e deterministico: se serve casualità, il seme è un parametro).
+1. Implementa `Method` in `apps/finanze/core/src/methods/` (deve essere puro e deterministico: se serve casualità, il seme è un parametro).
 2. Registralo: `defaultRegistry.register(myMethod)`, oppure aggiungilo a `defaultMethods`.
-3. Aggiungi l'etichetta italiana in `apps/lifebook-web/src/lib/labels.ts`.
+3. Aggiungi l'etichetta italiana in `apps/finanze/web/src/lib/labels.ts`.
 
 I metodi esistenti non cambiano. Un metodo che non deve pesare sul verdetto ha `countsForVerdict: false`.
 
@@ -35,7 +36,7 @@ I metodi esistenti non cambiano. Un metodo che non deve pesare sul verdetto ha `
 - Il denaro è salvato in **centesimi interi**; l'API e il core parlano in euro. La conversione avviene nel confine del repository (`repo.ts`).
 - Gli schemi zod validano gli ingressi e generano la documentazione OpenAPI (`/api/v1/openapi.json`).
 - `results/*` non contiene logica di calcolo: carica i dati (`loadLifebookData`) e invoca il core con `asOf` o `from`/`to`/`step`.
-- Le migrazioni si generano con `pnpm --filter @lifebook/api db:generate` e si applicano all'avvio.
+- Le migrazioni si generano con `pnpm --filter @lifebook/finanze-api db:generate` e si applicano all'avvio.
 - Il server ascolta solo su 127.0.0.1 e non registra token né corpi delle richieste.
 - **Utenti e ruoli.** Ogni riga di dati appartiene a un utente (`ownerId`, o al conto dell'utente) e ogni rotta filtra per `request.userId`: non esiste una rotta che legga i dati di un altro utente. Il ruolo (`admin` o `user`) si rilegge dal database a ogni richiesta, quindi un cambio di ruolo vale subito. Le rotte `/users` sono solo per gli amministratori (`requireAdmin`).
 - **Firefly III** (`src/firefly/`). `client.ts` legge l'API di Firefly III (conti con saldo a una data, movimenti di un conto) e non riporta mai il corpo delle risposte remote negli errori. `plan.ts` è una funzione pura che confronta i dati letti con quelli presenti e produce il piano dell'import: la stessa funzione serve all'anteprima (`dryRun`) e all'import, che applica il piano in una sola transazione. I contributi importati hanno `externalId = firefly:<id del movimento>`, che rende l'import ripetibile. Il token è cifrato con AES-256-GCM (`auth/secretBox.ts`) con una chiave che sta fuori dal database; senza chiave l'integrazione risponde 503.

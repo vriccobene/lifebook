@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Shared by the user commands in bin/: runs the users script of the API on the database in
-# $LIFEBOOK_DB (default: apps/lifebook-api/data/lifebook.sqlite), from any directory. With LIFEBOOK_DOCKER=1
+# $LIFEBOOK_DB (default: apps/finanze/api/data/lifebook.sqlite), from any directory. With LIFEBOOK_DOCKER=1
 # they run inside the `api` container of docker-compose.yml instead, on its /data volume.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
-API="$ROOT/apps/lifebook-api"
+API="$ROOT/apps/finanze/api"
 if [[ -n "${LIFEBOOK_DB:-}" ]]; then
   LIFEBOOK_DB="$(readlink -m "$LIFEBOOK_DB")"
   export LIFEBOOK_DB

@@ -9,12 +9,12 @@ pnpm install
 pnpm dev            # API su :3000 e web su http://localhost:5173
 ```
 
-Al primo accesso crei nome utente e password (almeno 8 caratteri): sei l'amministratore. Il database è il file `apps/lifebook-api/data/lifebook.sqlite`, ignorato da git; puoi spostarlo con la variabile `LIFEBOOK_DB`.
+Al primo accesso crei nome utente e password (almeno 8 caratteri): sei l'amministratore. Il database è il file `apps/finanze/api/data/lifebook.sqlite`, ignorato da git; puoi spostarlo con la variabile `LIFEBOOK_DB`.
 
 Per esplorare l'app con dati **fittizi**, senza toccare i tuoi:
 
 ```bash
-LIFEBOOK_DB=data/demo.sqlite pnpm --filter @lifebook/api seed
+LIFEBOOK_DB=data/demo.sqlite pnpm --filter @lifebook/finanze-api seed
 LIFEBOOK_DB=data/demo.sqlite pnpm dev     # utente demo, password demo-password-1234
 ```
 
@@ -32,10 +32,10 @@ Non esiste la registrazione libera: un nuovo utente lo crea sempre un amministra
 **Password dimenticata.** Un amministratore la reimposta dal Profilo. Se sei l'unico amministratore, o nessuno ricorda la propria, dal computer dove gira Lifebook:
 
 ```bash
-pnpm --filter @lifebook/api users list                          # elenca gli utenti
-pnpm --filter @lifebook/api users reset-password NOME           # stampa una nuova password casuale
-pnpm --filter @lifebook/api users reset-password NOME --password nuova-password
-pnpm --filter @lifebook/api users make-admin NOME               # ridà il ruolo di amministratore
+pnpm --filter @lifebook/finanze-api users list                          # elenca gli utenti
+pnpm --filter @lifebook/finanze-api users reset-password NOME           # stampa una nuova password casuale
+pnpm --filter @lifebook/finanze-api users reset-password NOME --password nuova-password
+pnpm --filter @lifebook/finanze-api users make-admin NOME               # ridà il ruolo di amministratore
 ```
 
 Gli stessi comandi, più la creazione e l'eliminazione di utenti, sono in `bin/` come comandi shell, utilizzabili da qualsiasi cartella col loro percorso (non aggiungere `bin/` al `PATH`: i nomi coincidono con comandi di sistema). Chiedono la password senza mostrarla; con `--random` ne generano una e la stampano:
@@ -49,7 +49,7 @@ bin/userdel [-y] NOME                       # elimina l'utente e TUTTI i suoi da
 
 Per avviare Lifebook c'è `bin/start`: in locale equivale a `pnpm dev`, dopo `source bin/set_docker` costruisce e avvia i container.
 
-Il database è `apps/lifebook-api/data/lifebook.sqlite`, oppure quello indicato da `LIFEBOOK_DB`. Con Docker, prima dei comandi esegui `source bin/set_docker` (e `source bin/unset_docker` per tornare al locale): i comandi girano nel container `api`, che deve essere avviato, sul database del volume. L'ultimo amministratore non si può eliminare.
+Il database è `apps/finanze/api/data/lifebook.sqlite`, oppure quello indicato da `LIFEBOOK_DB`. Con Docker, prima dei comandi esegui `source bin/set_docker` (e `source bin/unset_docker` per tornare al locale): i comandi girano nel container `api`, che deve essere avviato, sul database del volume. L'ultimo amministratore non si può eliminare.
 
 Funziona anche con l'app avviata e non tocca i dati. Chi può eseguire questi comandi ha comunque accesso al file del database, quindi non indebolisce la protezione.
 
@@ -113,8 +113,8 @@ Tutto è datato. Puoi inserire saldi o contributi retroattivi, modificarli o can
 ## Backup e ripristino
 
 ```bash
-pnpm --filter @lifebook/api backup                      # backups/lifebook-AAAAMMGG-HHMMSS.sqlite
-pnpm --filter @lifebook/api backup --dest ~/backup --keep 60
+pnpm --filter @lifebook/finanze-api backup                      # backups/lifebook-AAAAMMGG-HHMMSS.sqlite
+pnpm --filter @lifebook/finanze-api backup --dest ~/backup --keep 60
 ```
 
 La copia è consistente anche con l'API in funzione e tiene gli ultimi 30 file (`--keep 0` per tenerli tutti). I backup contengono dati finanziari reali: conservali in un posto sicuro e non metterli in git (la cartella `backups/` è già ignorata).

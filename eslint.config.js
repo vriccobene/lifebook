@@ -13,8 +13,8 @@ export default tseslint.config(
     },
   },
   {
-    // lifebook-core must stay pure: no I/O libraries and no dependency on apps.
-    files: ["packages/lifebook-core/src/**/*.ts"],
+    // finanze-core must stay pure: no I/O libraries and no dependency on apps.
+    files: ["apps/finanze/core/src/**/*.ts"],
     ignores: ["**/*.test.ts"],
     rules: {
       "no-restricted-imports": [
@@ -23,18 +23,18 @@ export default tseslint.config(
           patterns: [
             {
               group: ["node:*", "fs", "fs/*", "path", "http", "https", "net", "child_process"],
-              message: "lifebook-core must not perform I/O.",
+              message: "finanze-core must not perform I/O.",
             },
             {
               group: [
-                "@lifebook/api",
-                "@lifebook/web",
+                "@lifebook/finanze-api",
+                "@lifebook/finanze-web",
                 "fastify*",
                 "better-sqlite3",
                 "drizzle-orm*",
                 "react*",
               ],
-              message: "lifebook-core must not depend on apps or I/O libraries.",
+              message: "finanze-core must not depend on apps or I/O libraries.",
             },
           ],
         },

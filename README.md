@@ -5,13 +5,16 @@ Monorepo delle app personali di Lifebook. Per ora contiene **Lifebook Finanze**,
 ## Struttura
 
 ```
-apps/lifebook-api/       backend REST (Fastify, SQLite)
-apps/lifebook-web/       frontend React (Vite)
-packages/lifebook-core/  motore di calcolo in TS puro, senza I/O
-docs/                    specifiche e documentazione
+apps/                   le app di Lifebook, una cartella ciascuna
+  finanze/              Lifebook Finanze
+    api/                backend REST (Fastify, SQLite)
+    web/                frontend React (Vite)
+    core/               motore di calcolo in TS puro, senza I/O
+bin/                    script di amministrazione degli utenti
+docs/                   specifiche e documentazione
 ```
 
-Una nuova app si aggiunge creando una cartella in `apps/` (o `packages/`) con il proprio `package.json`: il workspace la rileva da solo.
+Una nuova app si aggiunge come cartella `apps/<app>/` con i suoi pacchetti (`api`, `web`, …), ognuno con il proprio `package.json` chiamato `@lifebook/<app>-<pacchetto>`: il workspace (`apps/*/*`) li rileva da solo.
 
 ## Requisiti
 
@@ -31,7 +34,7 @@ Poi apri **http://localhost:5173**. Al primo accesso l'app ti chiede di creare n
 L'app è multiutente: l'amministratore crea gli altri utenti dalla pagina **Profilo** (clic sul tuo nome in alto). Ogni utente vede solo i propri dati; nemmeno l'amministratore vede i dati degli altri.
 
 - L'API gira su `http://127.0.0.1:3000` ed è raggiungibile solo dal tuo computer. La web app la raggiunge da sola tramite un proxy.
-- I tuoi dati sono in un solo file, `apps/lifebook-api/data/lifebook.sqlite`, creato al primo avvio e ignorato da git. Fanne una copia ogni tanto (vedi «Backup»).
+- I tuoi dati sono in un solo file, `apps/finanze/api/data/lifebook.sqlite`, creato al primo avvio e ignorato da git. Fanne una copia ogni tanto (vedi «Backup»).
 - Accanto c'è `lifebook.sqlite.key`, la chiave che cifra i token di Firefly III (vedi «Import da Firefly III»).
 
 ### Provare l'app con dati fittizi
@@ -39,7 +42,7 @@ L'app è multiutente: l'amministratore crea gli altri utenti dalla pagina **Prof
 Per esplorare l'app senza inserire dati tuoi, carica una famiglia fittizia in un database a parte:
 
 ```bash
-LIFEBOOK_DB=data/demo.sqlite pnpm --filter @lifebook/api seed
+LIFEBOOK_DB=data/demo.sqlite pnpm --filter @lifebook/finanze-api seed
 LIFEBOOK_DB=data/demo.sqlite pnpm dev
 ```
 
@@ -48,10 +51,10 @@ Accedi con utente `demo` e password `demo-password-1234`. Per tornare ai tuoi da
 ### Backup
 
 ```bash
-pnpm --filter @lifebook/api backup
+pnpm --filter @lifebook/finanze-api backup
 ```
 
-Crea una copia consistente in `apps/lifebook-api/backups/` e tiene le ultime 30. Con l'API in funzione non serve fermarla. Per ripristinare: ferma l'app, copia il file di backup sopra `apps/lifebook-api/data/lifebook.sqlite` e riavvia.
+Crea una copia consistente in `apps/finanze/api/backups/` e tiene le ultime 30. Con l'API in funzione non serve fermarla. Per ripristinare: ferma l'app, copia il file di backup sopra `apps/finanze/api/data/lifebook.sqlite` e riavvia.
 
 Il backup contiene i dati di tutti gli utenti ma non la chiave `lifebook.sqlite.key`, apposta: un backup copiato altrove non contiene token di Firefly III utilizzabili. Se ripristini su una macchina senza la chiave, ogni utente deve solo reinserire il proprio token.
 
@@ -63,14 +66,14 @@ Chi usa [Firefly III](https://www.firefly-iii.org) può importare da lì saldi e
 
 ### Se qualcosa non parte
 
-| Problema                                     | Cosa fare                                                                                                                                                                                                                                                                                                                                    |
-| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm: command not found`                    | esegui `corepack enable`, poi riprova                                                                                                                                                                                                                                                                                                        |
-| errore sulla versione di Node                | serve Node 22 o superiore (`node -v`)                                                                                                                                                                                                                                                                                                        |
-| porta 3000 o 5173 occupata                   | chiudi il programma che la usa: la web app raggiunge l'API solo sulla 3000                                                                                                                                                                                                                                                                   |
-| errore su `better-sqlite3` all'installazione | riesegui `pnpm install`; se persiste servono gli strumenti di compilazione del sistema (su Debian/Ubuntu `build-essential` e `python3`)                                                                                                                                                                                                      |
-| la pagina non carica i dati                  | controlla che `pnpm dev` sia ancora in esecuzione e senza errori nel terminale                                                                                                                                                                                                                                                               |
-| password dimenticata                         | `pnpm --filter @lifebook/api users reset-password NOME` stampa una nuova password (con `--password` la scegli tu). `users list` elenca gli utenti, `users make-admin NOME` ridà il ruolo di amministratore. In Docker: `docker compose exec api pnpm users reset-password NOME`. **Non cancellare il file `.sqlite`**: contiene tutti i dati |
+| Problema                                     | Cosa fare                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm: command not found`                    | esegui `corepack enable`, poi riprova                                                                                                                                                                                                                                                                                                                |
+| errore sulla versione di Node                | serve Node 22 o superiore (`node -v`)                                                                                                                                                                                                                                                                                                                |
+| porta 3000 o 5173 occupata                   | chiudi il programma che la usa: la web app raggiunge l'API solo sulla 3000                                                                                                                                                                                                                                                                           |
+| errore su `better-sqlite3` all'installazione | riesegui `pnpm install`; se persiste servono gli strumenti di compilazione del sistema (su Debian/Ubuntu `build-essential` e `python3`)                                                                                                                                                                                                              |
+| la pagina non carica i dati                  | controlla che `pnpm dev` sia ancora in esecuzione e senza errori nel terminale                                                                                                                                                                                                                                                                       |
+| password dimenticata                         | `pnpm --filter @lifebook/finanze-api users reset-password NOME` stampa una nuova password (con `--password` la scegli tu). `users list` elenca gli utenti, `users make-admin NOME` ridà il ruolo di amministratore. In Docker: `docker compose exec api pnpm users reset-password NOME`. **Non cancellare il file `.sqlite`**: contiene tutti i dati |
 
 Per cambiare porta, file del database o indirizzo di ascolto dell'API vedi la tabella delle variabili nella sezione «API».
 
@@ -114,9 +117,9 @@ Dalla radice, su tutti i pacchetti:
 | `pnpm check`     | format, lint, typecheck, build e test   |
 | `pnpm format`    | formatta con Prettier                   |
 
-`lifebook-core` è un pacchetto interno: gli altri pacchetti lo importano direttamente dai sorgenti TypeScript, quindi non serve compilarlo prima. `build` dell'API controlla solo i tipi: il server si avvia con `tsx`.
+`finanze-core` è un pacchetto interno: gli altri pacchetti lo importano direttamente dai sorgenti TypeScript, quindi non serve compilarlo prima. `build` dell'API controlla solo i tipi: il server si avvia con `tsx`.
 
-Su un solo pacchetto: `pnpm --filter @lifebook/core test`.
+Su un solo pacchetto: `pnpm --filter @lifebook/finanze-core test`.
 
 ## Sviluppo
 
@@ -125,7 +128,7 @@ Su un solo pacchetto: `pnpm --filter @lifebook/core test`.
 ## API
 
 ```
-pnpm --filter @lifebook/api start      # http://127.0.0.1:3000/api/v1
+pnpm --filter @lifebook/finanze-api start      # http://127.0.0.1:3000/api/v1
 ```
 
 | Variabile                  | Default                | Cosa fa                                                                       |
@@ -138,15 +141,15 @@ pnpm --filter @lifebook/api start      # http://127.0.0.1:3000/api/v1
 
 Al primo avvio crea l'amministratore con `POST /api/v1/auth/setup`. Gli altri utenti li crea un amministratore con `POST /api/v1/users` (gestione in `/users`); ognuno cambia la propria password con `POST /api/v1/auth/password`. Poi `POST /api/v1/auth/login` restituisce un token di sessione (30 giorni); i token per accessi esterni si creano con `POST /api/v1/auth/tokens`. Ogni richiesta usa `Authorization: Bearer <token>`. L'integrazione con Firefly III è sotto `/api/v1/firefly/*`. La documentazione OpenAPI, generata dagli schemi zod, è su `/api/v1/openapi.json`.
 
-Dopo aver modificato `src/db/schema.ts` genera la migrazione con `pnpm --filter @lifebook/api db:generate`: viene applicata all'avvio.
+Dopo aver modificato `src/db/schema.ts` genera la migrazione con `pnpm --filter @lifebook/finanze-api db:generate`: viene applicata all'avvio.
 
 ## Backup e dati di esempio
 
 ```
-pnpm --filter @lifebook/api backup                 # copia consistente in backups/ (ultimi 30)
-pnpm --filter @lifebook/api users reset-password NOME   # recupero password (anche ad API avviata)
+pnpm --filter @lifebook/finanze-api backup                 # copia consistente in backups/ (ultimi 30)
+pnpm --filter @lifebook/finanze-api users reset-password NOME   # recupero password (anche ad API avviata)
 bin/useradd NOME · bin/chpasswd NOME · bin/userdel NOME · bin/users   # con Docker: prima source bin/set_docker
-LIFEBOOK_DB=data/demo.sqlite pnpm --filter @lifebook/api seed   # dati fittizi, solo su database vuoto
+LIFEBOOK_DB=data/demo.sqlite pnpm --filter @lifebook/finanze-api seed   # dati fittizi, solo su database vuoto
 ```
 
 Guida all'uso: [docs/guida-utente.md](docs/guida-utente.md). Architettura e sviluppo: [docs/architettura.md](docs/architettura.md).

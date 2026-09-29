@@ -11,9 +11,9 @@ Sei l'agente di sviluppo di **Lifebook**, una webapp personale per monitorare pa
 ## Stack e struttura
 
 - pnpm workspaces, TypeScript ovunque, Node LTS.
-- `packages/lifebook-core`: motore di calcolo in TS puro, senza I/O, funzioni pure e deterministiche.
-- `apps/lifebook-api`: Fastify, SQLite con Drizzle e better-sqlite3, validazione con zod, OpenAPI generata dagli schemi zod. Login locale per la UI e token API per accessi esterni.
-- `apps/lifebook-web`: React con Vite, TanStack Query e Recharts. Interfaccia in italiano.
+- `apps/finanze/core`: motore di calcolo in TS puro, senza I/O, funzioni pure e deterministiche.
+- `apps/finanze/api`: Fastify, SQLite con Drizzle e better-sqlite3, validazione con zod, OpenAPI generata dagli schemi zod. Login locale per la UI e token API per accessi esterni.
+- `apps/finanze/web`: React con Vite, TanStack Query e Recharts. Interfaccia in italiano.
 - Test con Vitest.
 - Ogni pacchetto ha `package.json`, `tsconfig` e script `build`, `test`, `lint` propri. Alla radice ci sono `pnpm-workspace.yaml`, un `tsconfig.base.json`, ESLint e Prettier condivisi, e un `.gitignore` che esclude database SQLite, `.env` e dati reali.
 - Struttura la radice in modo che altre app possano essere aggiunte in `apps/` senza modifiche.
@@ -33,10 +33,10 @@ Sei l'agente di sviluppo di **Lifebook**, una webapp personale per monitorare pa
 Procedi per fasi. Al termine di ogni fase esegui test, lint e typecheck, poi fai un commit con un messaggio chiaro. Non passare alla fase successiva se qualcosa è rosso.
 
 1. **Scaffolding**: monorepo, pacchetti vuoti che compilano, CI locale (`pnpm -r test`), README con i comandi.
-2. **`lifebook-core`**: tipi del dominio, calcolo del costo della vita, rendimenti lordi e netti (Modified Dietz), capitale investibile, tutti i metodi della sezione 7, verdetto. Test unitari estesi con dati sintetici e casi limite.
-3. **`lifebook-api`**: schema del database e migrazioni, CRUD di conti, snapshot, contributi, entrate e impostazioni. Endpoint `results/*` che invocano il core. Autenticazione. Test di integrazione su SQLite in memoria.
+2. **`finanze-core`**: tipi del dominio, calcolo del costo della vita, rendimenti lordi e netti (Modified Dietz), capitale investibile, tutti i metodi della sezione 7, verdetto. Test unitari estesi con dati sintetici e casi limite.
+3. **`finanze-api`**: schema del database e migrazioni, CRUD di conti, snapshot, contributi, entrate e impostazioni. Endpoint `results/*` che invocano il core. Autenticazione. Test di integrazione su SQLite in memoria.
 4. **Import CSV**: parser con mapping configurabile per conto (colonne, separatore, formato di data e numeri, encoding). **Non inventare i formati di UniCredit, Crédit Agricole, Mediolanum e BBVA.** Chiedimi file di esempio (anche anonimizzati) prima di scrivere i preset e costruisci intanto solo il parser generico.
-5. **`lifebook-web`**: cruscotto, giro mensile, conti, rendimenti, entrate, impostazioni, come nella sezione 9. Il giro mensile deve essere veloce da compilare: un'unica schermata con il saldo precedente, il campo del nuovo saldo, i contributi solo per i conti `declared` e l'import CSV dove disponibile.
+5. **`finanze-web`**: cruscotto, giro mensile, conti, rendimenti, entrate, impostazioni, come nella sezione 9. Il giro mensile deve essere veloce da compilare: un'unica schermata con il saldo precedente, il campo del nuovo saldo, i contributi solo per i conti `declared` e l'import CSV dove disponibile.
 6. **Rifinitura**: validazioni e avvisi del costo della vita (sezione 5), seed di dati di esempio fittizi, script di backup del database, documentazione in `docs/`.
 
 ## Regole di lavoro

@@ -33,14 +33,14 @@ importers:
         specifier: ^3.0.0
         version: 3.2.7(@types/node@22.20.4)(jsdom@30.1.1)(tsx@4.23.15)(yaml@2.9.1)
 
-  apps/lifebook-api:
+  apps/finanze/api:
     dependencies:
       '@fastify/swagger':
         specifier: ^9.9.0
         version: 9.9.0
-      '@lifebook/core':
+      '@lifebook/finanze-core':
         specifier: workspace:*
-        version: link:../../packages/lifebook-core
+        version: link:../core
       better-sqlite3:
         specifier: ^13.0.3
         version: 13.0.3
@@ -67,11 +67,13 @@ importers:
         specifier: ^4.23.15
         version: 4.23.15
 
-  apps/lifebook-web:
+  apps/finanze/core: {}
+
+  apps/finanze/web:
     dependencies:
-      '@lifebook/core':
+      '@lifebook/finanze-core':
         specifier: workspace:*
-        version: link:../../packages/lifebook-core
+        version: link:../core
       '@tanstack/react-query':
         specifier: ^5.103.2
         version: 5.103.2(react@19.3.0)
@@ -109,8 +111,6 @@ importers:
       vite:
         specifier: ^7.0.0
         version: 7.3.6(@types/node@22.20.4)(tsx@4.23.15)(yaml@2.9.1)
-
-  packages/lifebook-core: {}
 
 packages:
 
