@@ -73,6 +73,7 @@ export const accountUpdateSchema = z
   .object({
     name: accountBaseFields.name,
     institution: accountBaseFields.institution,
+    type: accountTypeSchema,
     realEstateUse: accountBaseFields.realEstateUse,
     contributionsMode: accountBaseFields.contributionsMode,
     countsAsLivingCost: accountBaseFields.countsAsLivingCost,

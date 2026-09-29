@@ -108,7 +108,7 @@ Puoi importare di nuovo quando vuoi, anche lo stesso periodo: i dati importati v
 
 ## Cambiare un dato del passato
 
-Tutto è datato. Puoi inserire saldi o contributi retroattivi, modificarli o cancellarli: lo storico si ricalcola. Anche le impostazioni e i parametri di un conto (tassazione, tasso, conto di spesa…) hanno una data «valido dal»: una modifica non riscrive il passato, che continua a usare i valori che valevano allora.
+Tutto è datato. Puoi inserire saldi o contributi retroattivi, modificarli o cancellarli: lo storico si ricalcola. Anche le impostazioni e i parametri di un conto (tassazione, tasso, conto di spesa…) hanno una data «valido dal»: una modifica non riscrive il passato, che continua a usare i valori che valevano allora. Per correggere un errore, in **Conti → Dettagli** puoi anche modificare una voce già salvata dello storico dei parametri («Modifica»), e cambiare in ogni momento nome, istituto, tipo, uso dell'immobile, modalità dei contributi e «la rata è costo della vita»: queste proprietà non sono datate, quindi la modifica vale per tutto lo storico del conto.
 
 ## Backup e ripristino
 

@@ -8,6 +8,7 @@ import {
   defaultInvestable,
   emptyParamsForm,
   entrySummary,
+  entryToParamsForm,
   paramsFormToEntry,
   type ParamsForm,
 } from "../lib/accountForm";
@@ -207,8 +208,21 @@ function AccountDetail({ account }: { account: Account }) {
     () => `/accounts/${account.id}/params`,
   );
   const removeParams = useWrite<string>("DELETE", (id) => `/accounts/${account.id}/params/${id}`);
+  const replaceParams = useWrite<{ id: string; entry: Record<string, unknown> }>(
+    "PUT",
+    ({ id }) => `/accounts/${account.id}/params/${id}`,
+    ({ entry }) => entry,
+  );
   const [name, setName] = useState(account.name);
   const [institution, setInstitution] = useState(account.institution ?? "");
+  const [type, setType] = useState<AccountType>(account.type);
+  const [use, setUse] = useState<"primary_residence" | "income">(
+    account.realEstateUse ?? "primary_residence",
+  );
+  const [mode, setMode] = useState(account.contributionsMode);
+  const [counts, setCounts] = useState(account.countsAsLivingCost);
+  const [editing, setEditing] = useState<{ id: string; form: ParamsForm } | null>(null);
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState<ParamsForm>(() =>
     emptyParamsForm(account.type, account.realEstateUse, todayIso()),
   );
@@ -237,10 +251,51 @@ function AccountDetail({ account }: { account: Account }) {
             <Field label="Istituto">
               <input value={institution} onChange={(e) => setInstitution(e.target.value)} />
             </Field>
+            <Field label="Tipo">
+              <select value={type} onChange={(e) => setType(e.target.value as AccountType)}>
+                {TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {ACCOUNT_TYPE_LABELS[t]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {type === "real_estate" ? (
+              <Field label="Uso">
+                <select value={use} onChange={(e) => setUse(e.target.value as typeof use)}>
+                  <option value="primary_residence">Abitazione principale</option>
+                  <option value="income">A reddito</option>
+                </select>
+              </Field>
+            ) : (
+              <Field label="Contributi">
+                <select value={mode} onChange={(e) => setMode(e.target.value as typeof mode)}>
+                  <option value="declared">Dichiarati</option>
+                  <option value="inferred">Dedotti dal saldo</option>
+                </select>
+              </Field>
+            )}
+            {type === "liability" && (
+              <Field label="La rata è costo della vita" check>
+                <input
+                  type="checkbox"
+                  checked={counts}
+                  onChange={(e) => setCounts(e.target.checked)}
+                />
+              </Field>
+            )}
             <button
               onClick={() =>
                 attempt(
-                  () => update.mutateAsync({ name, institution: institution || null }),
+                  () =>
+                    update.mutateAsync({
+                      name,
+                      institution: institution || null,
+                      type,
+                      realEstateUse: type === "real_estate" ? use : null,
+                      contributionsMode: mode,
+                      countsAsLivingCost: counts,
+                    }),
                   "Conto aggiornato.",
                 )
               }
@@ -290,11 +345,71 @@ function AccountDetail({ account }: { account: Account }) {
               <tbody>
                 {entries.map((entry: AccountParamsEntry) => {
                   const { id, validFrom, ...rest } = entry;
+                  if (editing?.id === id)
+                    return (
+                      <tr key={id}>
+                        <td colSpan={3}>
+                          <div className="stack">
+                            <Field label="Valida dal">
+                              <input
+                                type="date"
+                                value={editing.form.validFrom}
+                                onChange={(e) =>
+                                  setEditing({
+                                    id,
+                                    form: { ...editing.form, validFrom: e.target.value },
+                                  })
+                                }
+                                required
+                              />
+                            </Field>
+                            <ParamsFields
+                              type={account.type}
+                              form={editing.form}
+                              onChange={(next) => setEditing({ id, form: next })}
+                              errors={editErrors}
+                            />
+                            <div className="row">
+                              <button
+                                className="primary"
+                                onClick={() => {
+                                  const { entry: next, errors: found } = paramsFormToEntry(
+                                    editing.form,
+                                    account.type,
+                                  );
+                                  setEditErrors(found);
+                                  if (Object.keys(found).length > 0) return;
+                                  void attempt(async () => {
+                                    await replaceParams.mutateAsync({ id, entry: next });
+                                    setEditing(null);
+                                  }, "Voce aggiornata.");
+                                }}
+                              >
+                                Salva voce
+                              </button>
+                              <button onClick={() => setEditing(null)}>Annulla</button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    );
                   return (
                     <tr key={id}>
                       <td style={{ width: 120 }}>dal {formatDate(validFrom)}</td>
                       <td className="small">{entrySummary(rest).join(" · ") || "—"}</td>
-                      <td style={{ width: 80 }}>
+                      <td style={{ width: 150 }}>
+                        <button
+                          className="link"
+                          onClick={() => {
+                            setEditErrors({});
+                            setEditing({
+                              id,
+                              form: entryToParamsForm(entry, account.type, account.realEstateUse),
+                            });
+                          }}
+                        >
+                          Modifica
+                        </button>{" "}
                         <button
                           className="link danger"
                           onClick={() =>

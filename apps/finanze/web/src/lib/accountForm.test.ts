@@ -1,7 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { defaultInvestable, emptyParamsForm, entrySummary, paramsFormToEntry } from "./accountForm";
+import {
+  defaultInvestable,
+  emptyParamsForm,
+  entrySummary,
+  entryToParamsForm,
+  paramsFormToEntry,
+} from "./accountForm";
 
 describe("account parameters form", () => {
+  it("round-trips a saved entry through the edit form", () => {
+    const entry = {
+      validFrom: "2026-01-01",
+      inInvestableCapital: false,
+      taxRate: 0.125,
+      interestRate: 0.035,
+      monthlyPayment: 450.5,
+      paymentEndDate: "2040-12-31",
+    };
+    const form = entryToParamsForm(entry, "liability", null);
+    expect(form).toMatchObject({ taxRate: "12,5", interestRate: "3,5", monthlyPayment: "450,5" });
+    expect(paramsFormToEntry(form, "liability")).toEqual({ entry, errors: {} });
+  });
+
   it("does not treat liabilities and the primary residence as investable by default", () => {
     expect(defaultInvestable("liability", null)).toBe(false);
     expect(defaultInvestable("real_estate", "primary_residence")).toBe(false);

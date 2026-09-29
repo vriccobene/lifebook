@@ -94,9 +94,38 @@ describe("accounts", () => {
     expect((await api.patch(`/accounts/${body.id}`, { realEstateUse: null })).status).toBe(400);
   });
 
-  it("rejects unknown fields in an update (the type cannot change)", async () => {
+  it("rejects unknown fields in an update", async () => {
     const { body } = await api.post("/accounts", { name: "A", type: "brokerage" });
-    expect((await api.patch(`/accounts/${body.id}`, { type: "checking" })).status).toBe(400);
+    expect((await api.patch(`/accounts/${body.id}`, { owner: "x" })).status).toBe(400);
+  });
+
+  it("edits every property after creation, the type included", async () => {
+    const { body } = await api.post("/accounts", { name: "A", type: "brokerage" });
+    const edited = await api.patch(`/accounts/${body.id}`, {
+      name: "B",
+      institution: "Bank",
+      type: "liability",
+      contributionsMode: "inferred",
+      countsAsLivingCost: false,
+    });
+    expect(edited.status).toBe(200);
+    expect(edited.body).toMatchObject({
+      name: "B",
+      institution: "Bank",
+      type: "liability",
+      contributionsMode: "inferred",
+      countsAsLivingCost: false,
+    });
+  });
+
+  it("keeps the real estate use consistent when the type changes", async () => {
+    const { body } = await api.post("/accounts", { name: "A", type: "brokerage" });
+    const path = `/accounts/${body.id}`;
+    expect((await api.patch(path, { type: "real_estate" })).status).toBe(400);
+    const flat = await api.patch(path, { type: "real_estate", realEstateUse: "income" });
+    expect(flat.body).toMatchObject({ type: "real_estate", realEstateUse: "income" });
+    const back = await api.patch(path, { type: "deposit" });
+    expect(back.body).toMatchObject({ type: "deposit", realEstateUse: null });
   });
 
   it("deletes an account without data but refuses one with data (regression: no silent data loss)", async () => {
@@ -151,6 +180,23 @@ describe("dated account parameters", () => {
       taxRate: 0.1,
     });
     expect(edited.body).toMatchObject({ taxRate: 0.1, monthlyPayment: 100.1 });
+  });
+
+  it("replaces an entry, dropping the fields it no longer has", async () => {
+    const { body: account } = await api.post("/accounts", { name: "Dep", type: "deposit" });
+    const base = `/accounts/${account.id}/params`;
+    const entry = await api.post(base, {
+      validFrom: "2026-01-01",
+      taxRate: 0.26,
+      interestRate: 0.02,
+    });
+    const replaced = await api.put(`${base}/${entry.body.id}`, {
+      validFrom: "2026-02-01",
+      taxRate: 0.125,
+    });
+    expect(replaced.status).toBe(200);
+    expect(replaced.body).toEqual({ id: entry.body.id, validFrom: "2026-02-01", taxRate: 0.125 });
+    expect((await api.get(base)).body).toEqual([replaced.body]);
   });
 
   it("validates rates and dates", async () => {

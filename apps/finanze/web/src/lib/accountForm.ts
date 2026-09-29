@@ -39,6 +39,26 @@ export function emptyParamsForm(
 
 const PERCENT_FIELDS = ["expectedReturn", "passiveYield", "taxRate", "interestRate"] as const;
 
+/** A saved entry back into the form, to edit it. Fields the entry does not set stay empty. */
+export function entryToParamsForm(
+  saved: { validFrom: string },
+  type: AccountType,
+  realEstateUse: string | null,
+): ParamsForm {
+  const entry = saved as Record<string, unknown>;
+  const form = emptyParamsForm(type, realEstateUse, saved.validFrom);
+  if (typeof entry.isSpendingAccount === "boolean")
+    form.isSpendingAccount = entry.isSpendingAccount;
+  if (typeof entry.inInvestableCapital === "boolean")
+    form.inInvestableCapital = entry.inInvestableCapital;
+  for (const key of PERCENT_FIELDS)
+    if (typeof entry[key] === "number") form[key] = fractionToPercentInput(entry[key] as number);
+  if (typeof entry.monthlyPayment === "number")
+    form.monthlyPayment = toInputNumber(entry.monthlyPayment);
+  if (typeof entry.paymentEndDate === "string") form.paymentEndDate = entry.paymentEndDate;
+  return form;
+}
+
 /** The dated entry to send: only what the user filled in, so untouched parameters keep their earlier value. */
 export function paramsFormToEntry(
   form: ParamsForm,

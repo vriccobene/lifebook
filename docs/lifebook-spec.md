@@ -351,3 +351,8 @@ Non contraddice la sezione 2 («import di movimenti»): i movimenti non diventan
 - **Contributi**: i movimenti tra due conti propri di Firefly III (attività o passività da entrambe le parti, qualunque sia il tipo di movimento in Firefly III) diventano contributi solo sui conti a contributi dichiarati (regola `contributionRole`, la stessa della schermata Trasferimenti, spostata nel core): positivi su chi riceve, negativi su chi cede. Entrate, spese e dividendi non sono contributi. Movimenti in valuta diversa dall'euro: ignorati con avviso.
 - **Idempotenza**: i contributi importati hanno `externalId = firefly:<id del movimento>`. Un nuovo import dello stesso periodo aggiorna quelli cambiati e cancella quelli spariti da Firefly III; un contributo inserito a mano con stessa data e stesso importo non viene duplicato.
 - **Periodo**: di default i 12 mesi fino alla fine dell'ultimo mese concluso; al massimo 120 fine mese per import. L'anteprima (`dryRun`) mostra lo stesso resoconto senza scrivere nulla.
+
+### Modifica dei conti dopo la creazione
+
+- Tutte le proprietà di un conto sono modificabili dopo la creazione, **tipo compreso** (prima il tipo era fisso). Le proprietà non datate (nome, istituto, tipo, uso dell'immobile, modalità dei contributi, «la rata è costo della vita») valgono per tutto lo storico: cambiarle ricalcola anche il passato. Se il tipo smette di essere `real_estate` l'uso viene azzerato; se diventa `real_estate` l'uso è obbligatorio.
+- Una voce dello storico dei parametri si può sostituire per intero (`PUT /accounts/:id/params/:paramId`): i campi assenti vengono tolti dalla voce e tornano a valere quelli delle voci precedenti. Il `PATCH` resta e unisce i campi.

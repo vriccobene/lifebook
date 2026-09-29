@@ -123,9 +123,12 @@ export async function accountRoutes(app: FastifyInstance, ctx: RouteContext) {
     },
     async (request) => {
       const current = requireAccount(db, request.userId, request.params.id);
-      const body = request.body;
+      const body = { ...request.body };
+      const type = body.type ?? current.type;
+      // Leaving real estate drops its use, so a type change needs no extra field.
+      if (type !== "real_estate" && body.realEstateUse === undefined) body.realEstateUse = null;
       checkRealEstateUse(
-        current.type,
+        type,
         body.realEstateUse === undefined ? current.realEstateUse : body.realEstateUse,
       );
       if (Object.keys(body).length > 0) {
@@ -238,6 +241,26 @@ export async function accountRoutes(app: FastifyInstance, ctx: RouteContext) {
         validFrom: validFrom ?? current.validFrom,
         patch: JSON.stringify(merged),
       };
+      db.update(accountParams).set(next).where(eq(accountParams.id, current.id)).run();
+      return paramsEntry(next);
+    },
+  );
+
+  r.put(
+    "/accounts/:id/params/:paramId",
+    {
+      schema: {
+        tags,
+        summary: "Replace a parameter entry: fields left out are removed from it",
+        params: paramsParams,
+        body: accountParamsEntryInput,
+        response: { 200: accountParamsEntrySchema, 404: errorSchema },
+      },
+    },
+    async (request) => {
+      const current = findParam(request.userId, request.params.id, request.params.paramId);
+      const { validFrom, ...patch } = request.body;
+      const next = { ...current, validFrom, patch: accountPatchToJson(patch) };
       db.update(accountParams).set(next).where(eq(accountParams.id, current.id)).run();
       return paramsEntry(next);
     },
