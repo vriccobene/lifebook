@@ -1,6 +1,8 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import Database from "better-sqlite3";
+import { readFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 import { openDatabase } from "../src/db/client";
@@ -15,6 +17,35 @@ describe("database", () => {
   it("creates the schema on an empty database", () => {
     const { db, close } = openDatabase(":memory:");
     expect(db.select().from(users).all()).toEqual([]);
+    close();
+  });
+
+  it("promotes the single user of an older database to administrator (regression)", () => {
+    const dir = mkdtempSync(join(tmpdir(), "lifebook-test-"));
+    dirs.push(dir);
+    const path = join(dir, "old.sqlite");
+    // A database as the first version left it: only the first migration applied, one user.
+    const folder = join(import.meta.dirname, "../drizzle");
+    const first = readFileSync(join(folder, "0000_slimy_star_brand.sql"), "utf8");
+    const journal = JSON.parse(readFileSync(join(folder, "meta/_journal.json"), "utf8"));
+    const old = new Database(path);
+    for (const statement of first.split("--> statement-breakpoint")) old.exec(statement);
+    old.exec(
+      `CREATE TABLE "__drizzle_migrations" (id INTEGER PRIMARY KEY AUTOINCREMENT, hash text NOT NULL, created_at numeric)`,
+    );
+    const hash = createHash("sha256").update(first).digest("hex");
+    old
+      .prepare(`INSERT INTO "__drizzle_migrations" (hash, created_at) VALUES (?, ?)`)
+      .run(hash, journal.entries[0].when);
+    old
+      .prepare(
+        `INSERT INTO users (id, username, password_hash, created_at) VALUES ('u1', 'me', 'x:y', '2026-01-01')`,
+      )
+      .run();
+    old.close();
+
+    const { db, close } = openDatabase(path);
+    expect(db.select().from(users).all()).toMatchObject([{ username: "me", role: "admin" }]);
     close();
   });
 

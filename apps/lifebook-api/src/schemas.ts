@@ -81,18 +81,20 @@ export const accountUpdateSchema = z
   .partial()
   .strict();
 
+const snapshotSource = z.enum(["csv", "manual", "firefly"]);
+
 export const snapshotInput = z.object({
   accountId: z.string(),
   date: dateSchema,
   balance: z.number().describe("Euro. Liabilities are negative."),
-  source: z.enum(["csv", "manual"]).default("manual"),
+  source: snapshotSource.default("manual"),
 });
 export const snapshotSchema = snapshotInput.extend({
   id: z.string(),
-  source: z.enum(["csv", "manual"]),
+  source: snapshotSource,
 });
 export const snapshotUpdateSchema = z
-  .object({ date: dateSchema, balance: z.number(), source: z.enum(["csv", "manual"]) })
+  .object({ date: dateSchema, balance: z.number(), source: snapshotSource })
   .partial()
   .strict();
 

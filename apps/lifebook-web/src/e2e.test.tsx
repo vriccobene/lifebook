@@ -3,7 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { defaultRoundDate, todayIso } from "./lib/dates";
-import { CREDENTIALS, seedLife, signIn, startBackend, type Backend } from "./test/backend";
+import {
+  CREDENTIALS,
+  pastMonthEnds,
+  seedLife,
+  signIn,
+  startBackend,
+  type Backend,
+} from "./test/backend";
 
 /**
  * End to end: the real React app in jsdom talking to the real API (in-memory SQLite) and the real core.
@@ -582,5 +589,122 @@ describe("pension fund accounts", () => {
     const [fund] = (await backend.call("GET", "/accounts", undefined, token)).body;
     expect(fund).toMatchObject({ type: "pension_fund", contributionsMode: "declared" });
     expect(fund.params[0].inInvestableCapital).toBe(false);
+  });
+});
+
+describe("profile and users", () => {
+  it("lets the administrator create a user who then sees only their own, empty data", async () => {
+    const token = await signIn(backend);
+    await seedLife(backend, token, today);
+    const user = userEvent.setup();
+    render(<App />);
+    go("#/profilo");
+    await user.click(await screen.findByRole("link", { name: CREDENTIALS.username }));
+    expect(await screen.findByRole("heading", { name: "Utenti" })).toBeTruthy();
+
+    await user.type(screen.getByLabelText("Nome utente"), "anna");
+    await user.type(screen.getByLabelText(/Password iniziale/), "anna-password");
+    await user.click(screen.getByRole("button", { name: "Crea utente" }));
+    expect(await screen.findByText("Utente «anna» creato.")).toBeTruthy();
+    expect(screen.getByRole("cell", { name: "anna" })).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Esci" }));
+    await user.type(await screen.findByLabelText("Nome utente"), "anna");
+    await user.type(screen.getByLabelText("Password"), "anna-password");
+    await user.click(screen.getByRole("button", { name: "Accedi" }));
+    go("#/");
+    expect(await screen.findByText(/Non ci sono ancora saldi/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "anna" })).toBeTruthy();
+
+    go("#/profilo");
+    expect(await screen.findByRole("heading", { name: "Cambia password" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Utenti" })).toBeNull();
+  });
+
+  it("changes the password", async () => {
+    await signIn(backend);
+    const user = userEvent.setup();
+    render(<App />);
+    go("#/profilo");
+    await user.type(await screen.findByLabelText("Password attuale"), CREDENTIALS.password);
+    await user.type(screen.getByLabelText(/Nuova password/), "a-new-password");
+    await user.click(screen.getByRole("button", { name: "Cambia password" }));
+    expect(await screen.findByText(/Password cambiata/)).toBeTruthy();
+    const login = await backend.call("POST", "/auth/login", {
+      username: CREDENTIALS.username,
+      password: "a-new-password",
+    });
+    expect(login.status).toBe(200);
+  });
+});
+
+describe("Firefly III import", () => {
+  it("connects, links the accounts creating them, previews and imports", async () => {
+    const token = await signIn(backend);
+    // 13 month ends up to the last complete month: the default range of the import.
+    const ends = pastMonthEnds(today);
+    backend.firefly.accounts = [
+      {
+        id: "1",
+        name: "BBVA",
+        type: "asset",
+        role: "defaultAsset",
+        openingBalance: 1_000,
+        openingDate: ends[0]!,
+      },
+      { id: "2", name: "Broker", type: "asset", role: "sharedAsset" },
+    ];
+    backend.firefly.transactions = [
+      {
+        id: "10",
+        date: ends[5]!,
+        amount: 400,
+        source: "1",
+        destination: "2",
+        description: "Investimento",
+      },
+    ];
+    const user = userEvent.setup();
+    render(<App />);
+    go("#/firefly");
+
+    await user.type(
+      await screen.findByLabelText(/Indirizzo di Firefly III/),
+      "https://firefly.example.com",
+    );
+    await user.type(
+      screen.getByLabelText(/Token di accesso personale/),
+      "ff-personal-access-token",
+    );
+    await user.click(screen.getByRole("button", { name: "Collega" }));
+    expect(await screen.findByText("Collegato a Firefly III 6.4.4.")).toBeTruthy();
+
+    await user.selectOptions(await screen.findByLabelText("Conto Lifebook per BBVA"), "__create__");
+    expect(await screen.findByText(/Creato il conto «BBVA»/)).toBeTruthy();
+    await user.selectOptions(screen.getByLabelText("Conto Lifebook per Broker"), "__create__");
+    await waitFor(() =>
+      expect(
+        (screen.getByLabelText("Conto Lifebook per Broker") as HTMLSelectElement)
+          .selectedOptions[0]!.textContent,
+      ).toMatch(/^Broker/),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Anteprima" }));
+    expect(await screen.findByText(/Anteprima: non è stato salvato nulla/)).toBeTruthy();
+    expect((await backend.call("GET", "/snapshots", undefined, token)).body).toEqual([]);
+
+    await user.click(screen.getByRole("button", { name: "Importa" }));
+    expect(await screen.findByText(/Import completato: 13 fine mese/)).toBeTruthy();
+    const snapshots = (await backend.call("GET", "/snapshots", undefined, token)).body;
+    expect(snapshots.length).toBe(13 + 8); // the broker has a balance from the sixth month end
+    const contributions = (await backend.call("GET", "/contributions", undefined, token)).body;
+    // Neither account is marked as a spending account yet: both take the transfer, as on the Transfers screen.
+    expect(
+      contributions.map((c: { date: string; amount: number }) => [c.date, c.amount]).sort(),
+    ).toEqual([
+      [ends[5], -400],
+      [ends[5], 400],
+    ]);
+    expect(screen.getByText(/Ultimo import il/)).toBeTruthy();
   });
 });

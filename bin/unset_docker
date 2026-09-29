@@ -1,0 +1,8 @@
+# Da caricare con `source`, non da eseguire: riporta i comandi utenti di bin/ sul database locale.
+#   source bin/unset_docker
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  echo "Va caricato nella shell corrente: source $0" >&2
+  exit 1
+fi
+unset LIFEBOOK_DOCKER
+echo "Comandi utenti sul database locale."

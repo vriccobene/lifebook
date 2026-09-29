@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { randomUUID } from "node:crypto";
@@ -47,7 +47,10 @@ export async function accountRoutes(app: FastifyInstance, ctx: RouteContext) {
     },
     async (request) => {
       const rows = db.select().from(accounts).where(eq(accounts.ownerId, request.userId)).all();
-      const params = db.select().from(accountParams).all();
+      const ids = rows.map((row) => row.id);
+      const params = ids.length
+        ? db.select().from(accountParams).where(inArray(accountParams.accountId, ids)).all()
+        : [];
       return rows.map((row) =>
         accountToApi(
           row,

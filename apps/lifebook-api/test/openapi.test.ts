@@ -19,7 +19,7 @@ describe("OpenAPI document", () => {
     const { status, body } = await spec();
     expect(status).toBe(200);
     expect(body.openapi).toMatch(/^3\./);
-    expect(body.info.title).toBe("Lifebook API");
+    expect(body.info.title).toBe("Lifebook Finanze API");
   });
 
   it("documents every resource of the spec (Section 10)", async () => {
@@ -38,6 +38,22 @@ describe("OpenAPI document", () => {
       "/results/verdict",
     ]) {
       expect(paths, resource).toContain(resource);
+    }
+  });
+
+  it("documents user management and the Firefly III integration", async () => {
+    const { body } = await spec();
+    const paths = Object.keys(body.paths);
+    for (const path of [
+      "/users",
+      "/users/{id}",
+      "/auth/password",
+      "/firefly/connection",
+      "/firefly/accounts",
+      "/firefly/links/{fireflyAccountId}",
+      "/firefly/import",
+    ]) {
+      expect(paths, path).toContain(path);
     }
   });
 

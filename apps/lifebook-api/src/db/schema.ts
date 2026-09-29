@@ -9,6 +9,10 @@ export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  /** `admin` manages the users; nobody, admins included, sees another user's financial data. */
+  role: text("role", { enum: ["admin", "user"] })
+    .notNull()
+    .default("user"),
   createdAt: text("created_at").notNull(),
 });
 
@@ -83,7 +87,7 @@ export const snapshots = sqliteTable(
       .references(() => accounts.id, { onDelete: "cascade" }),
     date: text("date").notNull(),
     balanceCents: integer("balance_cents").notNull(),
-    source: text("source", { enum: ["csv", "manual"] }).notNull(),
+    source: text("source", { enum: ["csv", "manual", "firefly"] }).notNull(),
   },
   (t) => [uniqueIndex("snapshots_account_date_idx").on(t.accountId, t.date)],
 );
@@ -97,8 +101,13 @@ export const contributions = sqliteTable(
       .references(() => accounts.id, { onDelete: "cascade" }),
     date: text("date").notNull(),
     amountCents: integer("amount_cents").notNull(),
+    /** Set on imported entries (`firefly:<journal id>`), so a new import updates them instead of duplicating. */
+    externalId: text("external_id"),
   },
-  (t) => [index("contributions_account_date_idx").on(t.accountId, t.date)],
+  (t) => [
+    index("contributions_account_date_idx").on(t.accountId, t.date),
+    uniqueIndex("contributions_account_external_idx").on(t.accountId, t.externalId),
+  ],
 );
 
 export const incomeItems = sqliteTable(
@@ -149,4 +158,34 @@ export const settingsEntries = sqliteTable(
     patch: text("patch").notNull(),
   },
   (t) => [index("settings_entries_owner_idx").on(t.ownerId)],
+);
+
+/** One Firefly III connection per user. The personal access token is stored encrypted (see auth/secretBox). */
+export const fireflyConnections = sqliteTable("firefly_connections", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  baseUrl: text("base_url").notNull(),
+  tokenEncrypted: text("token_encrypted").notNull(),
+  createdAt: text("created_at").notNull(),
+  lastImportAt: text("last_import_at"),
+});
+
+/** A Firefly III account linked to a Lifebook account of the same user. */
+export const fireflyLinks = sqliteTable(
+  "firefly_links",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    fireflyAccountId: text("firefly_account_id").notNull(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    uniqueIndex("firefly_links_user_firefly_idx").on(t.userId, t.fireflyAccountId),
+    uniqueIndex("firefly_links_account_idx").on(t.accountId),
+  ],
 );

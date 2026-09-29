@@ -207,7 +207,13 @@ export async function ledgerRoutes(app: FastifyInstance, ctx: RouteContext) {
     async (request, reply) => {
       const { accountId, date, amount } = request.body;
       requireAccount(db, request.userId, accountId);
-      const row = { id: randomUUID(), accountId, date, amountCents: eurosToCents(amount) };
+      const row = {
+        id: randomUUID(),
+        accountId,
+        date,
+        amountCents: eurosToCents(amount),
+        externalId: null,
+      };
       db.insert(contributions).values(row).run();
       return reply.status(201).send(contributionToApi(row));
     },

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { buildApp, API_PREFIX } from "../src/app";
+import { buildApp, API_PREFIX, type AppOptions } from "../src/app";
 import { openDatabase, type Db } from "../src/db/client";
 
 export interface TestApp {
@@ -10,10 +10,13 @@ export interface TestApp {
 }
 
 /** A fresh in-memory database and app with a controllable clock. */
-export async function createTestApp(now = "2026-12-31T12:00:00Z"): Promise<TestApp> {
+export async function createTestApp(
+  now = "2026-12-31T12:00:00Z",
+  options: Pick<AppOptions, "firefly"> = {},
+): Promise<TestApp> {
   const { db, close } = openDatabase(":memory:");
   const clock = { current: new Date(now) };
-  const app = await buildApp({ db, now: () => clock.current });
+  const app = await buildApp({ db, now: () => clock.current, ...options });
   return {
     app,
     db,
@@ -69,6 +72,26 @@ export async function setupUser(app: FastifyInstance) {
 }
 
 export type Api = ReturnType<typeof client>;
+
+/** Creates another user through the admin API, logs them in and returns their client. */
+export async function addUser(
+  app: FastifyInstance,
+  admin: Api,
+  username: string,
+  role: "admin" | "user" = "user",
+) {
+  const password = `${username}-password`;
+  const created = await admin.post("/users", { username, password, role });
+  if (created.status !== 201)
+    throw new Error(`user creation failed: ${JSON.stringify(created.body)}`);
+  const login = await client(app).post("/auth/login", { username, password });
+  return {
+    id: created.body.id as string,
+    password,
+    token: login.body.token as string,
+    api: client(app, login.body.token),
+  };
+}
 
 /** Twelve monthly readings of 2026 plus the opening one on 2025-12-31. */
 export const MONTH_ENDS = [

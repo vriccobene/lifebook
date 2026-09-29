@@ -6,6 +6,7 @@ coverage/
 # Environment and secrets
 .env
 .env.*
+*.sqlite.key
 !.env.example
 
 # Databases, backups and real financial data

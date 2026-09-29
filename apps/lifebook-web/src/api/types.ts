@@ -49,7 +49,7 @@ export interface Snapshot {
   accountId: string;
   date: string;
   balance: number;
-  source: "csv" | "manual";
+  source: "csv" | "manual" | "firefly";
 }
 
 export interface Contribution {
@@ -136,4 +136,70 @@ export interface Series<T> {
   to: string;
   step: "month" | "round";
   points: T[];
+}
+
+export type UserRole = "admin" | "user";
+
+export interface Me {
+  userId: string;
+  username: string;
+  role: UserRole;
+}
+
+export interface UserInfo {
+  id: string;
+  username: string;
+  role: UserRole;
+  createdAt: string;
+}
+
+export interface FireflyConnection {
+  configured: boolean;
+  available: boolean;
+  baseUrl: string | null;
+  lastImportAt: string | null;
+}
+
+export interface FireflyAccount {
+  id: string;
+  name: string;
+  kind: "asset" | "liability";
+  role: string | null;
+  currencyCode: string | null;
+  balance: number;
+  active: boolean;
+  iban: string | null;
+  linkedAccountId: string | null;
+  suggestedType: AccountType;
+}
+
+export interface ImportCounts {
+  created: number;
+  updated: number;
+  unchanged: number;
+  deleted: number;
+  kept: number;
+}
+
+export interface FireflyImportWarning {
+  code: string;
+  accountId: string;
+  date: string | null;
+  detail: string | null;
+}
+
+export interface FireflyImportResult {
+  dryRun: boolean;
+  from: string;
+  to: string;
+  dates: string[];
+  accounts: {
+    accountId: string;
+    accountName: string;
+    fireflyAccountId: string;
+    fireflyAccountName: string | null;
+    snapshots: ImportCounts;
+    contributions: ImportCounts;
+  }[];
+  warnings: FireflyImportWarning[];
 }

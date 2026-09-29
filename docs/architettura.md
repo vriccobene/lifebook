@@ -37,6 +37,8 @@ I metodi esistenti non cambiano. Un metodo che non deve pesare sul verdetto ha `
 - `results/*` non contiene logica di calcolo: carica i dati (`loadLifebookData`) e invoca il core con `asOf` o `from`/`to`/`step`.
 - Le migrazioni si generano con `pnpm --filter @lifebook/api db:generate` e si applicano all'avvio.
 - Il server ascolta solo su 127.0.0.1 e non registra token né corpi delle richieste.
+- **Utenti e ruoli.** Ogni riga di dati appartiene a un utente (`ownerId`, o al conto dell'utente) e ogni rotta filtra per `request.userId`: non esiste una rotta che legga i dati di un altro utente. Il ruolo (`admin` o `user`) si rilegge dal database a ogni richiesta, quindi un cambio di ruolo vale subito. Le rotte `/users` sono solo per gli amministratori (`requireAdmin`).
+- **Firefly III** (`src/firefly/`). `client.ts` legge l'API di Firefly III (conti con saldo a una data, movimenti di un conto) e non riporta mai il corpo delle risposte remote negli errori. `plan.ts` è una funzione pura che confronta i dati letti con quelli presenti e produce il piano dell'import: la stessa funzione serve all'anteprima (`dryRun`) e all'import, che applica il piano in una sola transazione. I contributi importati hanno `externalId = firefly:<id del movimento>`, che rende l'import ripetibile. Il token è cifrato con AES-256-GCM (`auth/secretBox.ts`) con una chiave che sta fuori dal database; senza chiave l'integrazione risponde 503.
 
 Script: `backup` (copia consistente con rotazione) e `seed` (dati fittizi, solo su database vuoto).
 
@@ -45,7 +47,7 @@ Script: `backup` (copia consistente con rotazione) e `seed` (dati fittizi, solo 
 | Pacchetto | Cosa | Come |
 | --- | --- | --- |
 | core | unit test con dati sintetici e casi limite: mese mancante, spesa negativa, conto archiviato, più conti di spesa, pensione accesa e spenta, dati retroattivi, parametri nel tempo, calcolo as-of | Vitest |
-| api | integrazione su SQLite in memoria: autenticazione, CRUD, isolamento tra utenti, risultati, OpenAPI, backup, seed | Vitest |
+| api | integrazione su SQLite in memoria: autenticazione, gestione utenti e ruoli, CRUD, isolamento tra utenti, risultati, OpenAPI, backup, seed, migrazioni; import da Firefly III contro un finto Firefly III in memoria (`test/fakeFirefly.ts`) | Vitest |
 | web | logica pura (formati, giro, impostazioni, grafici) ed end to end: la vera app React in jsdom contro la vera API e il vero core | Vitest + Testing Library |
 
 Ogni bug corretto ha un test di regressione. **Nessun dato finanziario reale** va nel repository, nei test o nei log: i dati di prova sono sintetici.

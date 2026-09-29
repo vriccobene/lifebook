@@ -46,3 +46,19 @@ export function resolveAccountParams(account: Account, date: IsoDate): AccountPa
   }
   return params;
 }
+
+/**
+ * How a transfer touches an account in the calculation:
+ * - `declared`: the user records the contribution (titoli, investimenti esterni, fondi pensione, passività);
+ * - `spending`: a spending account, its change is read from its balance;
+ * - `inferred`: a deposit whose transfers are deduced from its balance;
+ * - `none`: real estate, which has no transfers.
+ */
+export type ContributionRole = "declared" | "spending" | "inferred" | "none";
+
+export function contributionRole(account: Account, date: IsoDate): ContributionRole {
+  if (account.type === "real_estate") return "none";
+  if (resolveAccountParams(account, date).isSpendingAccount) return "spending";
+  if (account.type !== "liability" && account.contributionsMode === "inferred") return "inferred";
+  return "declared";
+}

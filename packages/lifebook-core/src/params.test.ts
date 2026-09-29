@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveAccountParams } from "./params";
+import { contributionRole, resolveAccountParams } from "./params";
 import { DEFAULT_SETTINGS, resolveSettings, toRealRate } from "./settings";
 import { account } from "./testkit";
 
@@ -106,5 +106,30 @@ describe("pension fund accounts", () => {
     fund.params.push({ validFrom: "2026-06-01", inInvestableCapital: true });
     expect(resolveAccountParams(fund, "2026-05-31").inInvestableCapital).toBe(false);
     expect(resolveAccountParams(fund, "2026-06-01").inInvestableCapital).toBe(true);
+  });
+});
+
+describe("contribution role", () => {
+  it("tells which accounts get declared contributions for a transfer", () => {
+    const date = "2026-01-31";
+    expect(contributionRole(account("b", "brokerage"), date)).toBe("declared");
+    expect(contributionRole(account("p", "pension_fund"), date)).toBe("declared");
+    expect(contributionRole(account("l", "liability"), date)).toBe("declared");
+    expect(
+      contributionRole(account("l2", "liability", { contributionsMode: "inferred" }), date),
+    ).toBe("declared");
+    expect(contributionRole(account("d", "deposit"), date)).toBe("inferred");
+    expect(contributionRole(account("h", "real_estate"), date)).toBe("none");
+    expect(
+      contributionRole(account("c", "checking", { params: { isSpendingAccount: true } }), date),
+    ).toBe("spending");
+  });
+
+  it("follows the spending flag in force at the date", () => {
+    const acc = account("c", "checking", {
+      params: { validFrom: "2026-06-01", isSpendingAccount: true },
+    });
+    expect(contributionRole(acc, "2026-05-31")).toBe("declared");
+    expect(contributionRole(acc, "2026-06-30")).toBe("spending");
   });
 });

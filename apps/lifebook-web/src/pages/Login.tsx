@@ -29,7 +29,7 @@ export function Login() {
   return (
     <main className="login">
       <section className="card">
-        <h1>Lifebook</h1>
+        <h1>Lifebook Finanze</h1>
         {setupRequired && (
           <Banner kind="info">
             Primo avvio: scegli nome utente e password (almeno 8 caratteri).
@@ -61,6 +61,17 @@ export function Login() {
             {setupRequired ? "Crea utente" : "Accedi"}
           </button>
         </form>
+        {!setupRequired && (
+          <details className="small muted" style={{ marginTop: 12 }}>
+            <summary>Password dimenticata?</summary>
+            <p>
+              Un amministratore può reimpostarla dalla pagina Profilo. Altrimenti, dal computer dove
+              gira Lifebook, esegui nella cartella del progetto:
+            </p>
+            <pre>pnpm --filter @lifebook/api users reset-password NOME</pre>
+            <p>Stampa una nuova password. I tuoi dati non vengono toccati.</p>
+          </details>
+        )}
       </section>
     </main>
   );

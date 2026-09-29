@@ -1,0 +1,27 @@
+# Lifebook Finanze, always on. Start with: docker compose up -d --build
+services:
+  api:
+    build:
+      context: .
+      target: api
+    restart: unless-stopped
+    volumes:
+      - lifebook-data:/data
+      - lifebook-backups:/backups
+    # Not published: only the web container reaches the API, on the internal network.
+
+  web:
+    build:
+      context: .
+      target: web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      # Local only by default. Set LIFEBOOK_BIND=0.0.0.0 to expose it (put HTTPS in front).
+      - "${LIFEBOOK_BIND:-127.0.0.1}:${LIFEBOOK_PORT:-8080}:80"
+
+volumes:
+  lifebook-data:
+  lifebook-backups:

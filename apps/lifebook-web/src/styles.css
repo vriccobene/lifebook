@@ -374,3 +374,11 @@ button:disabled {
     padding: 12px;
   }
 }
+.user-link {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+}
+.user-link[aria-current="page"] {
+  text-decoration: underline;
+}

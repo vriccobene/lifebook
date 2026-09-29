@@ -15,7 +15,7 @@ import {
 
 type Message = { kind: "ok" | "error"; text: string };
 
-/** Contributions (versamenti e prelievi) and transfers between the accounts Lifebook tracks. */
+/** Contributions (versamenti e prelievi) and transfers between the accounts Lifebook Finanze tracks. */
 export function Transfers() {
   const accounts = useAccounts();
   const contributions = useContributions();

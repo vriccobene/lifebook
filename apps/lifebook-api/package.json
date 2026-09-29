@@ -12,7 +12,8 @@
     "test": "vitest run",
     "lint": "eslint .",
     "backup": "tsx src/scripts/backup.ts",
-    "seed": "tsx src/scripts/seed.ts"
+    "seed": "tsx src/scripts/seed.ts",
+    "users": "tsx src/scripts/users.ts"
   },
   "dependencies": {
     "@fastify/swagger": "^9.9.0",

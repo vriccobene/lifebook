@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Elenca gli utenti Lifebook e il loro ruolo.
+source "$(dirname "$(readlink -f "$0")")/_lifebook-users"
+run_users list

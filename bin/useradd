@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Crea un utente Lifebook.
+#   useradd [--admin] [--random] <nome>
+# Chiede la password (due volte); con --random ne genera una e la stampa.
+source "$(dirname "$(readlink -f "$0")")/_lifebook-users"
+usage() { echo "Uso: $(basename "$0") [--admin] [--random] <nome>" >&2; exit 2; }
+args=() random=0 name=""
+for a in "$@"; do
+  case "$a" in
+    --admin) args+=(--admin) ;;
+    --random) random=1 ;;
+    -h|--help) usage ;;
+    -*) usage ;;
+    *) [[ -z "$name" ]] || usage; name="$a" ;;
+  esac
+done
+[[ -n "$name" ]] || usage
+if (( ! random )); then pw="$(ask_password)" || exit 1; args+=(--password "$pw"); fi
+run_users add "$name" "${args[@]}"

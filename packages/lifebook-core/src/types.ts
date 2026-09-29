@@ -53,7 +53,7 @@ export interface BalanceSnapshot {
   date: IsoDate;
   /** Liabilities are negative. */
   balance: number;
-  source: "csv" | "manual";
+  source: "csv" | "manual" | "firefly";
 }
 
 /** Deposit (positive) or withdrawal (negative) towards a non-spending account. */

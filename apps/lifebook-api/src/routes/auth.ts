@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { randomUUID } from "node:crypto";
@@ -7,13 +7,15 @@ import { generateToken, hashPassword, hashToken, verifyPassword } from "../auth/
 import { tokens, users } from "../db/schema";
 import { HttpError, conflict, notFound } from "../errors";
 import { errorSchema, okSchema } from "../schemas";
+import { MIN_PASSWORD_LENGTH } from "../userAdmin";
 import { timestamp, type RouteContext } from "./context";
 
 const SESSION_DAYS = 30;
-const credentials = z.object({ username: z.string().min(1), password: z.string().min(8) });
+export const passwordSchema = z.string().min(MIN_PASSWORD_LENGTH);
+const credentials = z.object({ username: z.string().min(1), password: passwordSchema });
 const sessionResponse = z.object({ token: z.string(), userId: z.string(), expiresAt: z.string() });
 
-function issueSession(ctx: RouteContext, userId: string) {
+export function issueSession(ctx: RouteContext, userId: string) {
   const token = generateToken();
   const expiresAt = new Date(ctx.now().getTime() + SESSION_DAYS * 86_400_000).toISOString();
   ctx.db
@@ -54,7 +56,7 @@ export async function publicAuthRoutes(app: FastifyInstance, ctx: RouteContext) 
       schema: {
         tags: ["auth"],
         security: [],
-        summary: "Create the only user (allowed once)",
+        summary: "Create the first user, who is the administrator (allowed once)",
         body: credentials,
         response: { 201: sessionResponse, 409: errorSchema },
       },
@@ -70,6 +72,7 @@ export async function publicAuthRoutes(app: FastifyInstance, ctx: RouteContext) 
           id,
           username: request.body.username,
           passwordHash: hashPassword(request.body.password),
+          role: "admin",
           createdAt: timestamp(ctx.now),
         })
         .run();
@@ -116,12 +119,52 @@ export async function protectedAuthRoutes(app: FastifyInstance, ctx: RouteContex
     {
       schema: {
         tags: ["auth"],
-        response: { 200: z.object({ userId: z.string(), username: z.string() }) },
+        response: {
+          200: z.object({
+            userId: z.string(),
+            username: z.string(),
+            role: z.enum(["admin", "user"]),
+          }),
+        },
       },
     },
     async (request) => {
       const user = ctx.db.select().from(users).where(eq(users.id, request.userId)).get()!;
-      return { userId: user.id, username: user.username };
+      return { userId: user.id, username: user.username, role: user.role };
+    },
+  );
+
+  r.post(
+    "/auth/password",
+    {
+      schema: {
+        tags: ["auth"],
+        summary: "Change your password. Your other sessions are closed; API tokens stay valid.",
+        body: z.object({ currentPassword: z.string(), newPassword: passwordSchema }),
+        response: { 200: okSchema, 400: errorSchema },
+      },
+    },
+    async (request) => {
+      const user = ctx.db.select().from(users).where(eq(users.id, request.userId)).get()!;
+      if (!verifyPassword(request.body.currentPassword, user.passwordHash)) {
+        throw new HttpError(400, "wrong_password", "The current password is wrong");
+      }
+      ctx.db.transaction((tx) => {
+        tx.update(users)
+          .set({ passwordHash: hashPassword(request.body.newPassword) })
+          .where(eq(users.id, user.id))
+          .run();
+        tx.delete(tokens)
+          .where(
+            and(
+              eq(tokens.userId, user.id),
+              eq(tokens.kind, "session"),
+              ne(tokens.id, request.tokenId),
+            ),
+          )
+          .run();
+      });
+      return { ok: true as const };
     },
   );
 

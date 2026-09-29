@@ -1,8 +1,6 @@
-import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { accounts, tokens, users } from "../src/db/schema";
-import { generateToken, hashToken } from "../src/auth/crypto";
-import { client, createTestApp, setupUser, type Api, type TestApp } from "./helpers";
+import { accounts } from "../src/db/schema";
+import { addUser, createTestApp, setupUser, type Api, type TestApp } from "./helpers";
 
 let t: TestApp;
 let api: Api;
@@ -170,25 +168,7 @@ describe("ownership", () => {
     const { body: mine } = await api.post("/accounts", { name: "Mine", type: "brokerage" });
     await api.post("/snapshots", { accountId: mine.id, date: "2026-01-31", balance: 5 });
 
-    // A second user can only exist by direct insertion: the API allows a single one.
-    const otherId = randomUUID();
-    t.db
-      .insert(users)
-      .values({ id: otherId, username: "other", passwordHash: "x:y", createdAt: "2026-01-01" })
-      .run();
-    const token = generateToken();
-    t.db
-      .insert(tokens)
-      .values({
-        id: randomUUID(),
-        userId: otherId,
-        kind: "api",
-        name: "t",
-        tokenHash: hashToken(token),
-        createdAt: "2026-01-01",
-      })
-      .run();
-    const other = client(t.app, token);
+    const { api: other } = await addUser(t.app, api, "other");
 
     expect((await other.get("/accounts")).body).toEqual([]);
     expect((await other.get(`/accounts/${mine.id}`)).status).toBe(404);

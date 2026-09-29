@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Elimina un utente Lifebook e tutti i suoi dati.
+#   userdel [-y] <nome>
+# Senza -y chiede conferma.
+source "$(dirname "$(readlink -f "$0")")/_lifebook-users"
+usage() { echo "Uso: $(basename "$0") [-y] <nome>" >&2; exit 2; }
+yes=0 name=""
+for a in "$@"; do
+  case "$a" in
+    -y|--yes) yes=1 ;;
+    -*) usage ;;
+    *) [[ -z "$name" ]] || usage; name="$a" ;;
+  esac
+done
+[[ -n "$name" ]] || usage
+if (( ! yes )); then
+  read -rp "Eliminare «$name» e TUTTI i suoi dati? Scrivi il nome per confermare: " answer </dev/tty
+  [[ "$answer" == "$name" ]] || { echo "Annullato." >&2; exit 1; }
+fi
+run_users remove "$name" --yes

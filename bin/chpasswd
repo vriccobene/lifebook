@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Cambia la password di un utente Lifebook e ne chiude le sessioni.
+#   chpasswd [--random] <nome>
+# Chiede la nuova password (due volte); con --random ne genera una e la stampa.
+source "$(dirname "$(readlink -f "$0")")/_lifebook-users"
+usage() { echo "Uso: $(basename "$0") [--random] <nome>" >&2; exit 2; }
+random=0 name=""
+for a in "$@"; do
+  case "$a" in
+    --random) random=1 ;;
+    -*) usage ;;
+    *) [[ -z "$name" ]] || usage; name="$a" ;;
+  esac
+done
+[[ -n "$name" ]] || usage
+if (( random )); then run_users reset-password "$name"; fi
+pw="$(ask_password)" || exit 1
+run_users reset-password "$name" --password "$pw"

@@ -12,9 +12,11 @@ import { HttpError } from "./errors";
 import { accountRoutes } from "./routes/accounts";
 import { protectedAuthRoutes, publicAuthRoutes } from "./routes/auth";
 import type { RouteContext } from "./routes/context";
+import { fireflyRoutes, type FireflyOptions } from "./routes/firefly";
 import { ledgerRoutes } from "./routes/ledger";
 import { planningRoutes } from "./routes/planning";
 import { resultRoutes } from "./routes/results";
+import { userRoutes } from "./routes/users";
 
 export const API_PREFIX = "/api/v1";
 
@@ -23,10 +25,16 @@ export interface AppOptions {
   /** Injectable clock, for tests. */
   now?: () => Date;
   logger?: boolean;
+  /** Firefly III integration: the key that encrypts the tokens, and an injectable fetch for tests. */
+  firefly?: FireflyOptions;
 }
 
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
-  const ctx: RouteContext = { db: options.db, now: options.now ?? (() => new Date()) };
+  const ctx: RouteContext = {
+    db: options.db,
+    now: options.now ?? (() => new Date()),
+    firefly: options.firefly ?? {},
+  };
   const app = fastify({
     logger: options.logger ? { redact: ["req.headers.authorization"], level: "info" } : false,
   });
@@ -36,7 +44,11 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(swagger, {
     openapi: {
       openapi: "3.0.3",
-      info: { title: "Lifebook API", version: "0.1.0", description: "REST API of Lifebook." },
+      info: {
+        title: "Lifebook Finanze API",
+        version: "0.1.0",
+        description: "REST API of Lifebook Finanze.",
+      },
       servers: [{ url: API_PREFIX }],
       components: { securitySchemes: { bearerAuth: { type: "http", scheme: "bearer" } } },
       security: [{ bearerAuth: [] }],
@@ -79,6 +91,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
         await secured.register(ledgerRoutes, ctx);
         await secured.register(planningRoutes, ctx);
         await secured.register(resultRoutes, ctx);
+        await secured.register(userRoutes, ctx);
+        await secured.register(fireflyRoutes, ctx);
       });
     },
     { prefix: API_PREFIX },

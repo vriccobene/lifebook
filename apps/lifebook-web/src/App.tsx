@@ -1,18 +1,22 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { AuthProvider, useAuth } from "./api/auth";
+import { useGet } from "./api/hooks";
+import type { Me } from "./api/types";
 import { Accounts } from "./pages/Accounts";
 import { Dashboard } from "./pages/Dashboard";
 import { Essential } from "./pages/Essential";
+import { Firefly } from "./pages/Firefly";
 import { Giro } from "./pages/Giro";
 import { Income } from "./pages/Income";
 import { Login } from "./pages/Login";
+import { Profile } from "./pages/Profile";
 import { Returns } from "./pages/Returns";
 import { Transfers } from "./pages/Transfers";
 import { Settings } from "./pages/Settings";
 import { useHashPath } from "./lib/router";
 
-export const APP_TITLE = "Lifebook";
+export const APP_TITLE = "Lifebook Finanze";
 
 export const ROUTES: { path: string; label: string; element: () => ReactNode }[] = [
   { path: "/", label: "Cruscotto", element: () => <Dashboard /> },
@@ -22,14 +26,27 @@ export const ROUTES: { path: string; label: string; element: () => ReactNode }[]
   { path: "/rendimenti", label: "Rendimenti", element: () => <Returns /> },
   { path: "/entrate", label: "Entrate", element: () => <Income /> },
   { path: "/essenziale", label: "Spesa essenziale", element: () => <Essential /> },
+  { path: "/firefly", label: "Firefly III", element: () => <Firefly /> },
   { path: "/impostazioni", label: "Impostazioni", element: () => <Settings /> },
 ];
 
+/** Reached from the user name in the header, not from the navigation. */
+const PROFILE_PATH = "/profilo";
+
 function Shell() {
-  const { authenticated, logout } = useAuth();
-  const path = useHashPath();
+  const { authenticated } = useAuth();
   if (!authenticated) return <Login />;
-  const route = ROUTES.find((r) => r.path === path) ?? ROUTES[0]!;
+  return <SignedIn />;
+}
+
+function SignedIn() {
+  const { logout } = useAuth();
+  const path = useHashPath();
+  const me = useGet<Me>("/auth/me");
+  const route =
+    path === PROFILE_PATH
+      ? { path, element: () => <Profile /> }
+      : (ROUTES.find((r) => r.path === path) ?? ROUTES[0]!);
   return (
     <>
       <header className="app-header">
@@ -45,6 +62,16 @@ function Shell() {
             </a>
           ))}
         </nav>
+        {me.data && (
+          <a
+            href={`#${PROFILE_PATH}`}
+            className="user-link"
+            aria-current={path === PROFILE_PATH ? "page" : undefined}
+            title="Profilo"
+          >
+            {me.data.username}
+          </a>
+        )}
         <button onClick={() => void logout()}>Esci</button>
       </header>
       <main>{route.element()}</main>

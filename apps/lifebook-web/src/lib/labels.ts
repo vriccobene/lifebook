@@ -100,3 +100,5 @@ export const PERIODICITY_LABELS = {
   quarterly: "Trimestrale",
   yearly: "Annuale",
 } as const;
+
+export const ROLE_LABELS = { admin: "Amministratore", user: "Utente" } as const;

@@ -1,21 +1,14 @@
-import { resolveAccountParams, type Account as CoreAccount } from "@lifebook/core";
+import {
+  contributionRole,
+  type Account as CoreAccount,
+  type ContributionRole,
+} from "@lifebook/core";
 import type { Account } from "../api/types";
 
-/**
- * How a transfer touches an account in the calculation:
- * - `declared`: the user records the contribution (titoli, investimenti esterni, passività);
- * - `spending`: a spending account, its change is read from its balance;
- * - `inferred`: a deposit whose transfers are deduced from its balance;
- * - `none`: real estate, which has no transfers.
- */
-export type AccountRole = "declared" | "spending" | "inferred" | "none";
+export type AccountRole = ContributionRole;
 
 export function accountRole(account: Account, date: string): AccountRole {
-  if (account.type === "real_estate") return "none";
-  const params = resolveAccountParams(account as unknown as CoreAccount, date);
-  if (params.isSpendingAccount) return "spending";
-  if (account.type !== "liability" && account.contributionsMode === "inferred") return "inferred";
-  return "declared";
+  return contributionRole(account as unknown as CoreAccount, date);
 }
 
 const isOpen = (account: Account, date: string) =>

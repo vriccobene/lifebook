@@ -1,6 +1,6 @@
-# Lifebook: specifiche
+# Lifebook Finanze: specifiche
 
-Webapp personale, single-user e self-hosted, per monitorare patrimonio e investimenti e capire quando si può smettere di lavorare. Deve richiedere il minimo sforzo: una sessione di aggiornamento al mese, senza categorizzare le spese.
+Webapp personale, multiutente e self-hosted, per monitorare patrimonio e investimenti e capire quando si può smettere di lavorare. Deve richiedere il minimo sforzo: una sessione di aggiornamento al mese, senza categorizzare le spese.
 
 Questo documento riassume le decisioni prese in fase di discovery. Dove è scritto "configurabile" il valore è un'impostazione modificabile dall'utente, non una costante nel codice.
 
@@ -16,7 +16,7 @@ Questo documento riassume le decisioni prese in fase di discovery. Dove è scrit
 - Categorizzazione delle spese o import di movimenti.
 - Open banking (PSD2) e quotazioni di mercato automatiche.
 - Multivaluta: tutto in EUR.
-- Multiutente: solo un utente, ma con un campo `ownerId` già previsto nel modello.
+- ~~Multiutente~~: aggiunto dopo l'MVP, vedi la sezione 13 «Multiutente».
 - Simulazioni probabilistiche (Monte Carlo, backtest storico, stress test sulla sequenza dei rendimenti). Il modello dati e il motore devono restare predisposti per aggiungerle dopo.
 - Consulenza fiscale: le aliquote sono una stima configurabile.
 
@@ -241,7 +241,7 @@ Prefisso `/api/v1`, token nell'header `Authorization: Bearer`. Risorse: `account
 
 ## 12. Fasi successive
 
-Simulazioni (Monte Carlo, backtest storico, stress test), quotazioni automatiche, multiutente, open banking.
+Simulazioni (Monte Carlo, backtest storico, stress test), quotazioni automatiche, open banking. Il multiutente e l'import da Firefly III sono stati aggiunti (sezione 13).
 
 ## 13. Decisioni di chiarimento
 
@@ -330,3 +330,24 @@ Punti che la specifica non fissava; sono implementati e coperti da test.
 
 - Aggiunto il tipo `pension_fund` (fondo pensione). Si comporta come un investimento a contributi dichiarati (versamenti e prelievi registrati dall'utente, rendimento come variazione del saldo meno i contributi, `taxRate` proprio) ed è un tipo a sé nella composizione del patrimonio netto.
 - Per default `inInvestableCapital` è falso: il fondo è vincolato fino al pensionamento. L'utente può includerlo con il consueto parametro datato. Quando è incluso conta anche nel capitale rischioso della copertura per strati.
+
+### Multiutente
+
+Sostituisce la frase della sezione 2 e la parte «crea l'unico utente» delle decisioni della fase 3.
+
+- **Ruoli**: `admin` e `user`. Il primo utente, creato con `POST /auth/setup` al primo avvio, è amministratore. Nei database esistenti la migrazione rende amministratore l'utente che c'era.
+- **Nessuna registrazione libera**: gli utenti li crea un amministratore (`POST /users`), con una password iniziale che l'utente può cambiare (`POST /auth/password`, serve quella attuale; chiude le altre sessioni ma non i token API). I nomi utente sono unici senza distinzione tra maiuscole e minuscole.
+- **Privacy tra utenti**: ogni dato appartiene a un utente e ogni rotta è limitata a chi chiama. L'amministratore gestisce gli utenti ma **non vede i dati finanziari degli altri**: nessuna rotta lo consente.
+- **Gestione** (solo amministratori): elenco, cambio di ruolo, reimpostazione della password (chiude le sessioni dell'utente, non i suoi token API), eliminazione. Eliminare un utente cancella tutti i suoi dati. Deve restare almeno un amministratore e nessuno può eliminare se stesso. Il ruolo si rilegge a ogni richiesta: una revoca vale subito.
+- Il backup resta uno solo per tutto il database, quindi per tutti gli utenti. **Recupero password** da riga di comando (`users reset-password`, `users make-admin`, `users list`), per chi ha accesso al file del database e quindi già a tutti i dati: vale anche per l'unico amministratore. Senza indicarla, la nuova password è casuale e viene stampata; le sessioni dell'utente vengono chiuse.
+
+### Import da Firefly III
+
+Non contraddice la sezione 2 («import di movimenti»): i movimenti non diventano spese, si importano solo saldi e trasferimenti tra conti propri.
+
+- **Collegamento per utente**: indirizzo di Firefly III e token di accesso personale. Il token è verificato (`/api/v1/about`) e salvato cifrato (AES-256-GCM) con una chiave che sta fuori dal database (`LIFEBOOK_SECRET_KEY` o un file accanto al database, creato al primo avvio con permessi 600). I backup quindi non contengono token utilizzabili; persa la chiave, basta reinserire il token. Il token non viene mai restituito dall'API. Cambiando indirizzo si perdono i collegamenti dei conti (gli id appartengono all'altra istanza).
+- **Collegamento dei conti**: ogni conto attivo o passività di Firefly III si collega a un conto Lifebook dello stesso utente, uno a uno. Solo conti in euro. Il tipo suggerito per un conto nuovo è: passività → `liability`, conto di risparmio (`savingAsset`) → `deposit`, gli altri → `checking`. Il conto di spesa non viene impostato in automatico: lo sceglie l'utente.
+- **Saldi**: uno snapshot (`source = firefly`) per conto a ogni **fine mese** del periodo, con il saldo che Firefly III calcola per quel giorno (`GET /accounts?date=`). Le passività diventano negative. Si saltano le date prima dell'`opening_balance_date` e, se il conto non ha già storia in Lifebook prima del periodo, gli zeri iniziali: prima del suo primo movimento un conto Firefly III vale 0 e quello zero produrrebbe rendimenti e spese finti. Un saldo inserito a mano o da CSV non viene mai sovrascritto; se è diverso da quello di Firefly III l'import lo segnala.
+- **Contributi**: i movimenti tra due conti propri di Firefly III (attività o passività da entrambe le parti, qualunque sia il tipo di movimento in Firefly III) diventano contributi solo sui conti a contributi dichiarati (regola `contributionRole`, la stessa della schermata Trasferimenti, spostata nel core): positivi su chi riceve, negativi su chi cede. Entrate, spese e dividendi non sono contributi. Movimenti in valuta diversa dall'euro: ignorati con avviso.
+- **Idempotenza**: i contributi importati hanno `externalId = firefly:<id del movimento>`. Un nuovo import dello stesso periodo aggiorna quelli cambiati e cancella quelli spariti da Firefly III; un contributo inserito a mano con stessa data e stesso importo non viene duplicato.
+- **Periodo**: di default i 12 mesi fino alla fine dell'ultimo mese concluso; al massimo 120 fine mese per import. L'anteprima (`dryRun`) mostra lo stesso resoconto senza scrivere nulla.

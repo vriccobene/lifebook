@@ -1,9 +1,13 @@
 import { addMonths, endOfMonth, monthOf } from "@lifebook/core";
+import { randomBytes } from "node:crypto";
 import { buildApp } from "../../../lifebook-api/src/app";
+import { FakeFirefly } from "../../../lifebook-api/test/fakeFirefly";
 import { openDatabase } from "../../../lifebook-api/src/db/client";
 
 export interface Backend {
   app: Awaited<ReturnType<typeof buildApp>>;
+  /** The Firefly III instance the API talks to. */
+  firefly: FakeFirefly;
   /** Calls the real API in-process, as the browser would over HTTP. */
   call(
     method: string,
@@ -14,10 +18,11 @@ export interface Backend {
   close(): Promise<void>;
 }
 
-/** A real Lifebook API on in-memory SQLite, with `fetch` routed to it. */
+/** A real Lifebook Finanze API on in-memory SQLite, with `fetch` routed to it. */
 export async function startBackend(): Promise<Backend> {
   const { db, close } = openDatabase(":memory:");
-  const app = await buildApp({ db });
+  const firefly = new FakeFirefly();
+  const app = await buildApp({ db, firefly: { secretKey: randomBytes(32), fetch: firefly.fetch } });
   const originalFetch = globalThis.fetch;
 
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -37,6 +42,7 @@ export async function startBackend(): Promise<Backend> {
 
   return {
     app,
+    firefly,
     async call(method, path, body, token) {
       const res = await app.inject({
         method: method as "GET",

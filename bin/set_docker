@@ -1,0 +1,10 @@
+# Da caricare con `source`, non da eseguire: fa lavorare i comandi utenti di bin/ (users, useradd,
+# userdel, chpasswd) sul database del container Docker, nella shell corrente.
+#   source bin/set_docker
+# Per tornare al database locale: source bin/unset_docker
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  echo "Va caricato nella shell corrente: source $0" >&2
+  exit 1
+fi
+export LIFEBOOK_DOCKER=1
+echo "Comandi utenti sul container Docker (per tornare al locale: source bin/unset_docker)."

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Avvia Lifebook, da qualsiasi cartella.
+#   start
+# In locale avvia API e web app (http://localhost:5173; Ctrl+C per fermare), su $LIFEBOOK_DB se indicato.
+# Dopo `source bin/set_docker` costruisce e avvia i container (http://localhost:8080) e torna al prompt.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+[[ $# -eq 0 ]] || { echo "Uso: $(basename "$0")" >&2; exit 2; }
+if [[ "${LIFEBOOK_DOCKER:-}" == 1 ]]; then
+  docker compose -f "$ROOT/docker-compose.yml" up -d --build
+  echo "Lifebook avviato su http://${LIFEBOOK_BIND:-127.0.0.1}:${LIFEBOOK_PORT:-8080}"
+  echo "Per fermarlo: docker compose -f $ROOT/docker-compose.yml down (i dati restano nel volume)."
+else
+  if [[ -n "${LIFEBOOK_DB:-}" ]]; then
+    LIFEBOOK_DB="$(readlink -m "$LIFEBOOK_DB")"
+    export LIFEBOOK_DB
+  fi
+  [[ -d "$ROOT/node_modules" ]] || (cd "$ROOT" && pnpm install)
+  cd "$ROOT" && exec pnpm dev
+fi
