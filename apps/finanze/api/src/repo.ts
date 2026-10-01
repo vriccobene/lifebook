@@ -6,6 +6,7 @@ import type {
   EssentialSpendingEntry,
   IncomeItem,
   LifebookData,
+  Transfer,
   SettingsEntry,
 } from "@lifebook/finanze-core";
 import { and, eq, inArray } from "drizzle-orm";
@@ -20,15 +21,15 @@ type Row<T extends { $inferSelect: unknown }> = T["$inferSelect"];
 
 export function accountPatchToJson(patch: Record<string, unknown>): string {
   const stored = { ...patch };
-  if (typeof stored.monthlyPayment === "number")
-    stored.monthlyPayment = eurosToCents(stored.monthlyPayment);
+  for (const key of ["monthlyPayment", "propertyValue"] as const)
+    if (typeof stored[key] === "number") stored[key] = eurosToCents(stored[key]);
   return JSON.stringify(stored);
 }
 
 export function accountPatchFromJson(json: string): Record<string, unknown> {
   const patch = JSON.parse(json) as Record<string, unknown>;
-  if (typeof patch.monthlyPayment === "number")
-    patch.monthlyPayment = centsToEuros(patch.monthlyPayment);
+  for (const key of ["monthlyPayment", "propertyValue"])
+    if (typeof patch[key] === "number") patch[key] = centsToEuros(patch[key]);
   return patch;
 }
 
@@ -162,6 +163,17 @@ export function loadLifebookData(db: Db, userId: string): LifebookData {
     date: c.date,
     amount: centsToEuros(c.amountCents),
   }));
+  const transfers: Transfer[] = db
+    .select()
+    .from(t.transfers)
+    .where(eq(t.transfers.userId, userId))
+    .all()
+    .map((row) => ({
+      date: row.date,
+      amount: centsToEuros(row.amountCents),
+      fromAccountId: row.fromAccountId,
+      toAccountId: row.toAccountId,
+    }));
   const incomeItems: IncomeItem[] = db
     .select()
     .from(t.incomeItems)
@@ -184,5 +196,13 @@ export function loadLifebookData(db: Db, userId: string): LifebookData {
       ({ validFrom, patch }) => ({ validFrom, ...settingsPatchFromJson(patch) }) as SettingsEntry,
     );
 
-  return { accounts, snapshots, contributions, incomeItems, essentialSpending, settings };
+  return {
+    accounts,
+    snapshots,
+    contributions,
+    transfers,
+    incomeItems,
+    essentialSpending,
+    settings,
+  };
 }

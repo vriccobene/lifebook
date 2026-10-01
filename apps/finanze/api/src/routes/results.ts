@@ -38,6 +38,9 @@ const period = z.object({
   spendingAccountsDelta: z.number(),
   transfers: z.number(),
   transfersByAccount: z.array(z.object({ accountId: z.string(), amount: z.number() })),
+  outsideTransfers: z
+    .number()
+    .describe("Net transfers towards own Firefly III accounts not linked to Lifebook"),
   spending: z.number(),
   monthlySpending: z.number(),
   warnings: z.array(warning),
@@ -86,7 +89,7 @@ const returnRecord = z.object({
   from: dateSchema,
   to: dateSchema,
   days: z.number(),
-  method: z.enum(["declared", "inferred", "real_estate_income", "appreciation"]),
+  method: z.enum(["declared", "inferred", "real_estate_income", "appreciation", "property_value"]),
   opening: z.number(),
   closing: z.number(),
   contributions: z.number(),

@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { errorMessage } from "../api/client";
 import { useWrite } from "../api/hooks";
-import { accountNamer, useAccounts, useContributions } from "../api/queries";
-import type { Contribution } from "../api/types";
+import { accountNamer, useAccounts, useContributions, useTransfers } from "../api/queries";
+import type { Contribution, Transfer } from "../api/types";
 import { Banner, Card, EmptyState, Field, Loading, QueryError } from "../components/ui";
 import { todayIso } from "../lib/dates";
 import { formatDate, formatEuro, parseDecimal, toInputNumber } from "../lib/format";
@@ -341,6 +341,58 @@ export function Transfers() {
           </div>
         )}
       </Card>
+
+      <ImportedTransfers filter={filter} name={name} />
     </>
+  );
+}
+
+/** Transfers read from Firefly III: the movement as it happened, whatever it means for the contributions. */
+function ImportedTransfers({ filter, name }: { filter: string; name: (id: string) => string }) {
+  const transfers = useTransfers();
+  if (transfers.error) return <QueryError error={transfers.error} />;
+  if (!transfers.data) return <Loading />;
+  if (transfers.data.length === 0) return null;
+  const side = (accountId: string | null, fireflyName: string) =>
+    accountId ? name(accountId) : `${fireflyName} (non collegato)`;
+  const rows = transfers.data.filter(
+    (tr) => !filter || tr.fromAccountId === filter || tr.toAccountId === filter,
+  );
+  return (
+    <Card title="Trasferimenti importati da Firefly III">
+      <p className="muted small">
+        Tutti i trasferimenti tra i tuoi conti letti da Firefly III. Si aggiornano a ogni import;
+        per correggerli modificali in Firefly III. I contributi che ne derivano sono in «Movimenti
+        registrati».
+      </p>
+      {rows.length === 0 ? (
+        <EmptyState>Nessun trasferimento per questo conto.</EmptyState>
+      ) : (
+        <div className="scroll-x">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Da</th>
+                <th>A</th>
+                <th>Descrizione</th>
+                <th className="num">Importo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((tr: Transfer) => (
+                <tr key={tr.id}>
+                  <td>{formatDate(tr.date)}</td>
+                  <td>{side(tr.fromAccountId, tr.fromName)}</td>
+                  <td>{side(tr.toAccountId, tr.toName)}</td>
+                  <td className="small">{tr.description}</td>
+                  <td className="num">{formatEuro(tr.amount, 2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
   );
 }

@@ -1,5 +1,5 @@
 import { endOfMonth, monthOf, addMonths, type Account } from "@lifebook/finanze-core";
-import { and, eq, gte, inArray, lt, lte } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, lte, or } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { randomUUID } from "node:crypto";
@@ -14,6 +14,7 @@ import {
   type FireflyAccount,
 } from "../firefly/client";
 import { MAX_IMPORT_MONTHS, importedContributionId, monthEnds, planImport } from "../firefly/plan";
+import { centsToEuros } from "../money";
 import { loadLifebookData, requireAccount } from "../repo";
 import { dateSchema, errorSchema, okSchema } from "../schemas";
 import { timestamp, today, type RouteContext } from "./context";
@@ -75,6 +76,7 @@ const importResultSchema = z.object({
   from: dateSchema,
   to: dateSchema,
   dates: z.array(dateSchema),
+  transfers: countsSchema.describe("Transfers between your accounts, over the whole import"),
   accounts: z.array(
     z.object({
       accountId: z.string(),
@@ -93,6 +95,17 @@ const importResultSchema = z.object({
       detail: z.string().nullable(),
     }),
   ),
+});
+
+const transferSchema = z.object({
+  id: z.string(),
+  date: dateSchema,
+  amount: z.number().describe("Euro, always positive"),
+  fromAccountId: z.string().nullable(),
+  toAccountId: z.string().nullable(),
+  fromName: z.string(),
+  toName: z.string(),
+  description: z.string(),
 });
 
 /** Last day of the last complete month. */
@@ -399,6 +412,12 @@ export async function fireflyRoutes(app: FastifyInstance, ctx: RouteContext) {
             (c.date >= from && c.date <= to) ||
             (c.externalId !== null && fetchedIds.has(c.externalId)),
         );
+      const transfers = db
+        .select()
+        .from(t.transfers)
+        .where(eq(t.transfers.userId, request.userId))
+        .all()
+        .filter((tr) => (tr.date >= from && tr.date <= to) || fetchedIds.has(tr.externalId));
 
       const plan = planImport({
         from,
@@ -409,6 +428,7 @@ export async function fireflyRoutes(app: FastifyInstance, ctx: RouteContext) {
         splits,
         snapshots,
         contributions,
+        transfers,
         accountsWithEarlierHistory: new Set(earlier.map((e) => e.accountId)),
       });
 
@@ -433,6 +453,14 @@ export async function fireflyRoutes(app: FastifyInstance, ctx: RouteContext) {
             tx.delete(t.contributions)
               .where(inArray(t.contributions.id, plan.deleteContributions))
               .run();
+          for (const transfer of plan.createTransfers)
+            tx.insert(t.transfers)
+              .values({ id: randomUUID(), userId: request.userId, ...transfer })
+              .run();
+          for (const { id, ...transfer } of plan.updateTransfers)
+            tx.update(t.transfers).set(transfer).where(eq(t.transfers.id, id)).run();
+          if (plan.deleteTransfers.length > 0)
+            tx.delete(t.transfers).where(inArray(t.transfers.id, plan.deleteTransfers)).run();
           tx.update(t.fireflyConnections)
             .set({ lastImportAt: timestamp(ctx.now) })
             .where(eq(t.fireflyConnections.userId, request.userId))
@@ -445,9 +473,56 @@ export async function fireflyRoutes(app: FastifyInstance, ctx: RouteContext) {
         from,
         to,
         dates: plan.dates,
+        transfers: plan.transfers,
         accounts: plan.accounts,
         warnings: plan.warnings,
       };
+    },
+  );
+
+  r.get(
+    "/transfers",
+    {
+      schema: {
+        tags: ["transfers"],
+        summary:
+          "Transfers between your accounts imported from Firefly III, newest first. A side is null when its Firefly III account is not linked.",
+        querystring: z.object({
+          accountId: z.string().optional(),
+          from: dateSchema.optional(),
+          to: dateSchema.optional(),
+        }),
+        response: { 200: z.array(transferSchema), 404: errorSchema },
+      },
+    },
+    async (request) => {
+      const { accountId, from, to } = request.query;
+      if (accountId) requireAccount(db, request.userId, accountId);
+      return db
+        .select()
+        .from(t.transfers)
+        .where(
+          and(
+            eq(t.transfers.userId, request.userId),
+            accountId
+              ? or(eq(t.transfers.fromAccountId, accountId), eq(t.transfers.toAccountId, accountId))
+              : undefined,
+            from ? gte(t.transfers.date, from) : undefined,
+            to ? lte(t.transfers.date, to) : undefined,
+          ),
+        )
+        .orderBy(desc(t.transfers.date))
+        .all()
+        .map((row) => ({
+          id: row.id,
+          date: row.date,
+          amount: centsToEuros(row.amountCents),
+          fromAccountId: row.fromAccountId,
+          toAccountId: row.toAccountId,
+          fromName: row.fromName,
+          toName: row.toName,
+          description: row.description,
+        }));
     },
   );
 }

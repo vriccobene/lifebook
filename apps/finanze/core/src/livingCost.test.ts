@@ -288,6 +288,13 @@ describe("living cost: dated parameters and archived accounts", () => {
 });
 
 describe("living cost: validations", () => {
+  it("warns about a spending account with no readings at all", () => {
+    const data = steadyLife({ months: 1 });
+    data.accounts.push(spendingAccount("unread"));
+    expect(livingCost(data).warnings).toContainEqual(
+      expect.objectContaining({ code: "spending_account_missing_reading", accountId: "unread" }),
+    );
+  });
   it("warns about a spending account without a reading in the period", () => {
     const data = steadyLife({ months: 2 });
     data.accounts.push(spendingAccount("chk2"));

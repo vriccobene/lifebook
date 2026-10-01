@@ -54,11 +54,11 @@ export function warningText(warning: FireflyImportWarning, accountName: string):
     case "firefly_account_missing":
       return `${name}: il conto collegato non esiste più in Firefly III. Scollegalo o collegane un altro.`;
     case "currency_not_supported":
-      return `${name}: il conto è in ${warning.detail}, Lifebook gestisce solo euro. Non è stato importato.`;
+      return `${name}${warning.date ? ` al ${formatDate(warning.date)}` : ""}: il conto è in ${warning.detail}, Lifebook gestisce solo euro. Non è stato importato.`;
     case "manual_snapshot_differs":
       return `${name} al ${formatDate(warning.date)}: è rimasto il saldo inserito a mano, Firefly III indica ${formatEuro(Number(warning.detail), 2)}.`;
     case "transaction_currency_not_supported":
-      return `${name} al ${formatDate(warning.date)}: il movimento «${warning.detail}» non è in euro ed è stato ignorato.`;
+      return `${name} al ${formatDate(warning.date)}: il movimento «${warning.detail}» non è in euro ed è stato ignorato. Se già importato, conserva il valore precedente.`;
     default:
       return `${name}: ${warning.code}`;
   }

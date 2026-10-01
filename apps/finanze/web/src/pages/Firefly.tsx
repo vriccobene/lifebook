@@ -276,8 +276,9 @@ function ImportCard() {
     <Card title="Importa">
       <p className="muted small">
         Per ogni conto collegato si importa il saldo a ogni fine mese del periodo e ogni movimento
-        verso o da un altro tuo conto. Un nuovo import dello stesso periodo aggiorna i dati invece
-        di duplicarli. I saldi e i contributi inseriti a mano non vengono mai sovrascritti.
+        verso o da un altro tuo conto, che trovi nella pagina Trasferimenti. Un nuovo import dello
+        stesso periodo aggiorna i dati invece di duplicarli. I saldi e i contributi inseriti a mano
+        non vengono mai sovrascritti.
       </p>
       <div className="row">
         <Field label="Dal">
@@ -312,6 +313,10 @@ function ImportCard() {
               ? "Anteprima: non è stato salvato nulla. Ecco cosa farebbe l'import."
               : `Import completato: ${result.dates.length} fine mese dal ${formatDate(result.dates[0])} al ${formatDate(result.dates.at(-1))}.`}
           </Banner>
+          <p>
+            <strong>Trasferimenti tra i tuoi conti:</strong>{" "}
+            {describeCounts(result.transfers, true)}.
+          </p>
           <table>
             <thead>
               <tr>

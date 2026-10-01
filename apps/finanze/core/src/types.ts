@@ -18,6 +18,11 @@ export type RealEstateUse = "primary_residence" | "income";
  */
 export interface AccountParams {
   isSpendingAccount: boolean;
+  /**
+   * The account the income (salary and the other entries of Entrate) is paid into. On an account that is
+   * not a spending account the income is neither a gain nor a transfer.
+   */
+  isIncomeAccount: boolean;
   inInvestableCapital: boolean;
   /** Real annual expected return, used for projections. */
   expectedReturn: number | null;
@@ -26,6 +31,12 @@ export interface AccountParams {
   taxRate: number;
   /** Declared annual interest rate, for deposits and liabilities. */
   interestRate: number | null;
+  /**
+   * Real estate only: the value of the property. When set, the account's balance is the property's cash
+   * (the rent collected, e.g. a Firefly III account) and the value is added to it; the return is measured
+   * on the value. Tracked over time with dated entries.
+   */
+  propertyValue: number | null;
   /** Liabilities only: monthly installment. */
   monthlyPayment: number | null;
   /** Liabilities only: date of the last installment. */
@@ -61,6 +72,19 @@ export interface Contribution {
   accountId: string;
   date: IsoDate;
   amount: number;
+}
+
+/**
+ * A movement between two of the user's own accounts, known from Firefly III. A side is null when it is an
+ * account Lifebook does not track (not linked): money that leaves or enters the tracked accounts without
+ * being spent or earned.
+ */
+export interface Transfer {
+  date: IsoDate;
+  /** Always positive. */
+  amount: number;
+  fromAccountId: string | null;
+  toAccountId: string | null;
 }
 
 export type Periodicity = "monthly" | "quarterly" | "yearly";

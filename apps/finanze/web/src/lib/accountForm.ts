@@ -5,11 +5,13 @@ import { fractionToPercentInput, parseDecimal, percentToFraction, toInputNumber 
 export interface ParamsForm {
   validFrom: string;
   isSpendingAccount: boolean;
+  isIncomeAccount: boolean;
   inInvestableCapital: boolean;
   expectedReturn: string;
   passiveYield: string;
   taxRate: string;
   interestRate: string;
+  propertyValue: string;
   monthlyPayment: string;
   paymentEndDate: string;
 }
@@ -27,15 +29,20 @@ export function emptyParamsForm(
   return {
     validFrom,
     isSpendingAccount: false,
+    isIncomeAccount: false,
     inInvestableCapital: defaultInvestable(type, realEstateUse),
     expectedReturn: "",
     passiveYield: "",
     taxRate: "",
     interestRate: "",
+    propertyValue: "",
     monthlyPayment: "",
     paymentEndDate: "",
   };
 }
+
+/** Account types the income can be paid into. */
+export const takesIncome = (type: AccountType) => type !== "liability" && type !== "real_estate";
 
 const PERCENT_FIELDS = ["expectedReturn", "passiveYield", "taxRate", "interestRate"] as const;
 
@@ -49,12 +56,15 @@ export function entryToParamsForm(
   const form = emptyParamsForm(type, realEstateUse, saved.validFrom);
   if (typeof entry.isSpendingAccount === "boolean")
     form.isSpendingAccount = entry.isSpendingAccount;
+  if (typeof entry.isIncomeAccount === "boolean") form.isIncomeAccount = entry.isIncomeAccount;
   if (typeof entry.inInvestableCapital === "boolean")
     form.inInvestableCapital = entry.inInvestableCapital;
   for (const key of PERCENT_FIELDS)
     if (typeof entry[key] === "number") form[key] = fractionToPercentInput(entry[key] as number);
   if (typeof entry.monthlyPayment === "number")
     form.monthlyPayment = toInputNumber(entry.monthlyPayment);
+  if (typeof entry.propertyValue === "number")
+    form.propertyValue = toInputNumber(entry.propertyValue);
   if (typeof entry.paymentEndDate === "string") form.paymentEndDate = entry.paymentEndDate;
   return form;
 }
@@ -67,6 +77,7 @@ export function paramsFormToEntry(
   const entry: Record<string, unknown> = { validFrom: form.validFrom };
   const errors: Record<string, string> = {};
   if (type === "checking" || type === "deposit") entry.isSpendingAccount = form.isSpendingAccount;
+  if (takesIncome(type)) entry.isIncomeAccount = form.isIncomeAccount;
   entry.inInvestableCapital = form.inInvestableCapital;
   for (const key of PERCENT_FIELDS) {
     if (form[key].trim() === "") continue;
@@ -81,6 +92,11 @@ export function paramsFormToEntry(
     else entry.monthlyPayment = value;
   }
   if (form.paymentEndDate.trim() !== "") entry.paymentEndDate = form.paymentEndDate;
+  if (type === "real_estate" && form.propertyValue.trim() !== "") {
+    const value = parseDecimal(form.propertyValue);
+    if (value === null || value < 0) errors.propertyValue = "Importo non valido";
+    else entry.propertyValue = value;
+  }
   return { entry, errors };
 }
 
@@ -92,6 +108,8 @@ export function entrySummary(entry: Record<string, unknown>): string[] {
   };
   if (typeof entry.isSpendingAccount === "boolean")
     parts.push(entry.isSpendingAccount ? "conto di spesa" : "non di spesa");
+  if (typeof entry.isIncomeAccount === "boolean")
+    parts.push(entry.isIncomeAccount ? "riceve le entrate" : "non riceve le entrate");
   if (typeof entry.inInvestableCapital === "boolean")
     parts.push(
       entry.inInvestableCapital ? "nel capitale investibile" : "fuori dal capitale investibile",
@@ -100,6 +118,8 @@ export function entrySummary(entry: Record<string, unknown>): string[] {
   pct("passiveYield", "rendita passiva");
   pct("taxRate", "tassazione");
   pct("interestRate", "tasso");
+  if (typeof entry.propertyValue === "number")
+    parts.push(`valore dell'immobile ${toInputNumber(entry.propertyValue)} €`);
   if (typeof entry.monthlyPayment === "number")
     parts.push(`rata ${toInputNumber(entry.monthlyPayment)} €`);
   if (typeof entry.paymentEndDate === "string") parts.push(`ultima rata ${entry.paymentEndDate}`);

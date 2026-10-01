@@ -21,7 +21,9 @@ export function LivingCostDetail({
         <summary>Mostra il dettaglio per mese ({periods.length})</summary>
         <p className="muted small">
           Spesa = entrate nette − variazione dei conti di spesa − trasferimenti verso gli altri
-          conti. Un rendimento negativo non è una spesa: avviene sui conti che non sono di spesa.
+          conti. Sui conti a contributi dichiarati, i rendimenti non entrano nella spesa: occorre
+          registrare tutti i versamenti e i prelievi. Sui conti con movimenti dedotti, il risultato
+          dipende dal tasso di interesse impostato.
         </p>
         <div className="scroll-x">
           <table>

@@ -401,6 +401,94 @@ describe("Firefly III import", () => {
     ]);
   });
 
+  it("imports every transfer between own accounts, whatever their Lifebook type", async () => {
+    const ids = await connectAndLink(api);
+    const res = await api.post("/firefly/import", RANGE);
+    expect(res.body.transfers).toEqual({
+      created: 4,
+      updated: 0,
+      unchanged: 0,
+      deleted: 0,
+      kept: 0,
+    });
+    // Salary, groceries and the dividend are not transfers. The move to the deposit is, even if it makes no
+    // contribution; the transfers seen from both linked sides are stored once.
+    const transfers = (await api.get("/transfers")).body as Record<string, unknown>[];
+    expect(transfers.map((tr) => [tr.date, tr.fromAccountId, tr.toAccountId, tr.amount])).toEqual([
+      ["2026-05-12", ids.bro, ids.chk, 1_000],
+      ["2026-04-05", ids.chk, ids.mortgage, 800],
+      ["2026-03-10", ids.chk, ids.bro, 5_000],
+      ["2026-02-10", ids.chk, ids.dep, 2_000],
+    ]);
+    expect(transfers.at(-1)).toMatchObject({
+      fromName: "BBVA",
+      toName: "Risparmi",
+      description: "Risparmio",
+    });
+    const ofDeposit = (await api.get(`/transfers?accountId=${ids.dep}`)).body;
+    expect(ofDeposit).toHaveLength(1);
+    expect((await api.get("/transfers?from=2026-04-01&to=2026-04-30")).body).toHaveLength(1);
+    // Contributions are unchanged: still only on declared accounts.
+    expect((await api.get("/contributions")).body).toHaveLength(3);
+  });
+
+  it("keeps a transfer whose other side is not linked, with its Firefly III name", async () => {
+    const ids = await connectAndLink(api);
+    await api.delete("/firefly/links/2");
+    await api.post("/firefly/import", RANGE);
+    const saving = (await api.get(`/transfers?accountId=${ids.chk}`)).body.find(
+      (tr: { description: string }) => tr.description === "Risparmio",
+    );
+    expect(saving).toMatchObject({ fromAccountId: ids.chk, toAccountId: null, toName: "Risparmi" });
+  });
+
+  it("follows transfers edited and deleted in Firefly III, and previews without writing (regression)", async () => {
+    const ids = await connectAndLink(api);
+    const preview = await api.post("/firefly/import", { ...RANGE, dryRun: true });
+    expect(preview.body.transfers.created).toBe(4);
+    expect((await api.get("/transfers")).body).toEqual([]);
+
+    await api.post("/firefly/import", RANGE);
+    const again = await api.post("/firefly/import", RANGE);
+    expect(again.body.transfers).toMatchObject({ created: 0, unchanged: 4 });
+
+    ff.transactions = ff.transactions.filter((tx) => tx.id !== "103");
+    ff.transactions.find((tx) => tx.id === "104")!.amount = 4_500;
+    const edited = await api.post("/firefly/import", RANGE);
+    expect(edited.body.transfers).toMatchObject({ updated: 1, deleted: 1, unchanged: 2 });
+    const transfers = (await api.get("/transfers")).body;
+    expect(transfers).toHaveLength(3);
+    expect(transfers.find((tr: { toAccountId: string }) => tr.toAccountId === ids.bro).amount).toBe(
+      4_500,
+    );
+    expect(transfers.some((tr: { toAccountId: string }) => tr.toAccountId === ids.dep)).toBe(false);
+  });
+
+  it("never turns a transfer into spending plus a gain (regression)", async () => {
+    const ids = await connectAndLink(api);
+    // The deposit earns interest the Lifebook account does not declare (no interest rate), a transfer
+    // goes to an own Firefly III account that is not linked.
+    ff.accounts.push({ id: "93", name: "Interessi", type: "revenue" });
+    ff.accounts.push({ id: "6", name: "Conto figli", type: "asset", role: "defaultAsset" });
+    ff.transactions.push(
+      { id: "108", date: "2026-02-20", amount: 30, source: "93", destination: "2" },
+      { id: "109", date: "2026-02-21", amount: 300, source: "1", destination: "6" },
+    );
+    await api.post("/firefly/import", RANGE);
+
+    const periods = (await api.get("/results/living-cost?asOf=2026-06-30")).body.livingCost
+      .periods as { to: string; spending: number; outsideTransfers: number }[];
+    // February: no income, 2000 to the deposit, 300 to the children's account: nothing was spent.
+    const feb = periods.find((p) => p.to === "2026-02-28")!;
+    expect(feb.spending).toBeCloseTo(0, 9);
+    expect(feb.outsideTransfers).toBe(300);
+    // The 30 of interest is the deposit's gain, not a transfer that lowers the spending.
+    const dep = (await api.get("/results/returns?asOf=2026-06-30")).body.records.find(
+      (r: { accountId: string; to: string }) => r.accountId === ids.dep && r.to === "2026-02-28",
+    );
+    expect(dep).toMatchObject({ contributions: 2000, grossGain: 30 });
+  });
+
   it("never overwrites what the user entered by hand", async () => {
     const ids = await connectAndLink(api);
     await api.post("/snapshots", { accountId: ids.chk, date: "2026-01-31", balance: 11_000 });
@@ -457,6 +545,51 @@ describe("Firefly III import", () => {
     expect((await api.get(`/snapshots?accountId=${ids.bro}`)).body).toHaveLength(1 + 6);
   });
 
+  it("imports an initial zero when Firefly III supplies an opening date", async () => {
+    const ids = await connectAndLink(api);
+    const broker = ff.accounts.find((a) => a.id === "3")!;
+    broker.openingDate = "2026-01-01";
+    broker.openingBalance = 0;
+    await api.post("/firefly/import", RANGE);
+    const snapshots = (await api.get(`/snapshots?accountId=${ids.bro}`)).body;
+    expect(snapshots.map((s: { date: string; balance: number }) => [s.date, s.balance])).toEqual([
+      ["2026-01-31", 0],
+      ["2026-02-28", 0],
+      ["2026-03-31", 5000],
+      ["2026-04-30", 5000],
+      ["2026-05-31", 4000],
+      ["2026-06-30", 4050],
+    ]);
+    const returns = (await api.get("/results/returns?asOf=2026-06-30")).body;
+    expect(
+      returns.records.find(
+        (r: { accountId: string; to: string }) => r.accountId === ids.bro && r.to === "2026-03-31",
+      ),
+    ).toMatchObject({
+      contributions: 5000,
+      grossGain: 0,
+    });
+  });
+
+  it("keeps an imported movement if its new currency is unsupported", async () => {
+    const ids = await connectAndLink(api);
+    await api.post("/firefly/import", RANGE);
+    ff.transactions.find((tx) => tx.id === "104")!.currency = "USD";
+    const res = await api.post("/firefly/import", RANGE);
+    expect(res.body.warnings).toContainEqual({
+      code: "transaction_currency_not_supported",
+      accountId: ids.bro,
+      date: "2026-03-10",
+      detail: "Investimento",
+    });
+    expect((await api.get(`/contributions?accountId=${ids.bro}`)).body).toEqual(
+      expect.arrayContaining([expect.objectContaining({ date: "2026-03-10", amount: 5000 })]),
+    );
+    expect((await api.get(`/transfers?accountId=${ids.bro}`)).body).toEqual(
+      expect.arrayContaining([expect.objectContaining({ date: "2026-03-10", amount: 5000 })]),
+    );
+  });
+
   it("validates the range and needs a connection and links", async () => {
     expect((await api.post("/firefly/import", RANGE)).status).toBe(400); // no links
     await connectAndLink(api);
@@ -509,5 +642,15 @@ describe("Firefly III and multiple users (regression)", () => {
     expect(t.db.select().from(schema.fireflyConnections).all()).toEqual([]);
     expect(t.db.select().from(schema.fireflyLinks).all()).toEqual([]);
     expect(t.db.select().from(schema.snapshots).all()).toEqual([]);
+    expect(t.db.select().from(schema.transfers).all()).toEqual([]);
+  });
+
+  it("shows each user only their own transfers", async () => {
+    await connectAndLink(api);
+    await api.post("/firefly/import", RANGE);
+    const anna = await addUser(t.app, api, "anna");
+    expect((await anna.api.get("/transfers")).body).toEqual([]);
+    const own = (await api.get("/transfers")).body[0].fromAccountId;
+    expect((await anna.api.get(`/transfers?accountId=${own}`)).status).toBe(404);
   });
 });

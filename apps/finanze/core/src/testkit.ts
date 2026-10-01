@@ -11,6 +11,7 @@ import type {
   BalanceSnapshot,
   Contribution,
   IncomeItem,
+  Transfer,
 } from "./types";
 
 /** Builders for synthetic test data. Not part of the public API. */
@@ -44,6 +45,20 @@ export function spendingAccount(id = "chk"): Account {
 
 export function snap(accountId: string, date: IsoDate, balance: number): BalanceSnapshot {
   return { accountId, date, balance, source: "manual" };
+}
+
+/** A balance imported from Firefly III: the transfers around it are known. */
+export function fireflySnap(accountId: string, date: IsoDate, balance: number): BalanceSnapshot {
+  return { accountId, date, balance, source: "firefly" };
+}
+
+export function transfer(
+  from: string | null,
+  to: string | null,
+  date: IsoDate,
+  amount: number,
+): Transfer {
+  return { fromAccountId: from, toAccountId: to, date, amount };
 }
 
 export function contribution(accountId: string, date: IsoDate, amount: number): Contribution {

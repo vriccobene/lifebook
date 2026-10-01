@@ -37,8 +37,10 @@ export interface FireflySplit {
   currencyCode: string | null;
   sourceId: string;
   sourceType: string;
+  sourceName: string;
   destinationId: string;
   destinationType: string;
+  destinationName: string;
   description: string;
 }
 
@@ -73,8 +75,10 @@ interface TransactionResource {
       currency_code?: string | null;
       source_id: string | number;
       source_type: string;
+      source_name?: string | null;
       destination_id: string | number;
       destination_type: string;
+      destination_name?: string | null;
       description?: string;
     }[];
   };
@@ -85,8 +89,10 @@ const MAX_PAGES = 500;
 const TIMEOUT_MS = 20_000;
 
 const num = (value: string | number | null | undefined): number => {
-  const n = typeof value === "number" ? value : Number.parseFloat(value ?? "");
-  return Number.isFinite(n) ? n : 0;
+  const n = typeof value === "number" ? value : Number(value);
+  if (value === null || value === undefined || String(value).trim() === "" || !Number.isFinite(n))
+    throw new HttpError(502, "firefly_bad_response", "Firefly III returned an invalid amount");
+  return n;
 };
 
 /** `https://ff.example.com/` or `.../api/v1` → `https://ff.example.com`. Throws 400 on anything but http(s). */
@@ -160,9 +166,16 @@ export class FireflyClient {
       if (!Array.isArray(body.data))
         throw new HttpError(502, "firefly_bad_response", "Unexpected answer from Firefly III");
       items.push(...body.data);
-      if (page >= (body.meta?.pagination?.total_pages ?? 1)) break;
+      const totalPages = body.meta?.pagination?.total_pages ?? 1;
+      if (!Number.isInteger(totalPages) || totalPages < 1 || totalPages > MAX_PAGES)
+        throw new HttpError(
+          502,
+          "firefly_bad_response",
+          "Firefly III pagination is invalid or too large",
+        );
+      if (page >= totalPages) return items;
     }
-    return items;
+    throw new HttpError(502, "firefly_bad_response", "Firefly III pagination did not complete");
   }
 
   /** Checks URL and token. */
@@ -221,8 +234,10 @@ export class FireflyClient {
         currencyCode: s.currency_code ?? null,
         sourceId: String(s.source_id),
         sourceType: s.source_type,
+        sourceName: s.source_name ?? "",
         destinationId: String(s.destination_id),
         destinationType: s.destination_type,
+        destinationName: s.destination_name ?? "",
         description: s.description ?? "",
       })),
     );

@@ -15,6 +15,13 @@
       "when": 1790667940593,
       "tag": "0001_multiuser_firefly",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790714293882,
+      "tag": "0002_firefly_transfers",
+      "breakpoints": true
     }
   ]
 }

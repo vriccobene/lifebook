@@ -1,4 +1,14 @@
-import { contributionsBetween, isActive, paramsAt, readingAt, sum, type Dataset } from "./dataset";
+import {
+  contributionsBetween,
+  incomeInto,
+  isActive,
+  movementsKnown,
+  paramsAt,
+  readingAt,
+  sum,
+  transfersBetween,
+  type Dataset,
+} from "./dataset";
 import {
   DAYS_PER_YEAR,
   addMonths,
@@ -22,9 +32,14 @@ export interface PeriodSpending {
   income: number;
   /** Sum of balance changes of the spending accounts. */
   spendingAccountsDelta: number;
-  /** Net transfers towards non-spending accounts. */
+  /** Net transfers towards non-spending accounts, including `outsideTransfers`. */
   transfers: number;
   transfersByAccount: { accountId: string; amount: number }[];
+  /**
+   * Net transfers towards own accounts Lifebook does not track (Firefly III accounts not linked). Money
+   * that leaves the tracked accounts this way is not spent, and money that comes in is not earned.
+   */
+  outsideTransfers: number;
   spending: number;
   /** Spending per calendar month: `spending / months`. */
   monthlySpending: number;
@@ -83,7 +98,11 @@ function transferFor(
   to: IsoDate,
   warnings: Warning[],
 ): number | null {
-  if (account.type === "real_estate") return null; // revaluations are not transfers
+  const known = movementsKnown(ds, account.id, from, to);
+  const knownTransfers = () => sum(transfersBetween(ds, account.id, from, to).map((t) => t.amount));
+
+  // Revaluations are not transfers; a purchase or renovation paid from another account is, when known.
+  if (account.type === "real_estate") return known ? knownTransfers() : null;
 
   const params = paramsAt(account, to);
 
@@ -95,15 +114,19 @@ function transferFor(
     return Math.max(capitalRepaid, installments);
   }
 
+  // Income paid into a non-spending account stays there: part of its inflow, like a transfer.
+  const income = () => sum(incomeInto(ds, account, from, to).map((r) => r.amount));
+
   if (account.contributionsMode === "declared") {
     const contributions = contributionsBetween(ds, account.id, from, to);
-    const total = sum(contributions.map((c) => c.amount));
+    const total = sum(contributions.map((c) => c.amount)) + income();
     const opening = readingAt(ds, account.id, from);
     const closing = readingAt(ds, account.id, to);
     if (
       opening &&
       closing &&
       contributions.length === 0 &&
+      !params.isIncomeAccount &&
       opening.balance !== 0 &&
       Math.abs(closing.balance - opening.balance) / Math.abs(opening.balance) >
         ds.settings.declaredBalanceChangeThreshold
@@ -120,7 +143,10 @@ function transferFor(
     return total;
   }
 
-  // inferred: balance change minus the net interest accrued at the declared rate
+  // inferred: the transfers when known from Firefly III, otherwise the balance change minus the net
+  // interest accrued at the declared rate
+  // Without them the balance change already contains the income.
+  if (known) return knownTransfers() + income();
   const closing = readingAt(ds, account.id, to);
   if (!closing) return null;
   if (closing.date <= from) return 0; // not read in this period: the change lands where it is measured
@@ -143,14 +169,15 @@ function computePeriod(ds: Dataset, from: IsoDate, to: IsoDate): PeriodSpending 
 
   let spendingAccountsDelta = 0;
   const transfersByAccount: { accountId: string; amount: number }[] = [];
+  /** Accounts whose movements this period accounts for. */
+  const counted = new Set<string>();
 
   for (const account of ds.accounts) {
     if (!isActive(account, to)) continue;
     const params = paramsAt(account, to);
     if (params.isSpendingAccount) {
       const closing = readingAt(ds, account.id, to);
-      if (!closing) continue;
-      if (closing.date <= from) {
+      if (!closing || closing.date <= from) {
         warnings.push(
           warning("spending_account_missing_reading", { accountId: account.id, from, to }),
         );
@@ -162,13 +189,28 @@ function computePeriod(ds: Dataset, from: IsoDate, to: IsoDate): PeriodSpending 
         continue;
       }
       spendingAccountsDelta += closing.balance - opening.balance;
+      counted.add(account.id);
     } else {
       const amount = transferFor(ds, account, from, to, warnings);
-      if (amount !== null) transfersByAccount.push({ accountId: account.id, amount });
+      if (amount !== null) {
+        transfersByAccount.push({ accountId: account.id, amount });
+        counted.add(account.id);
+      }
     }
   }
 
-  const transfers = sum(transfersByAccount.map((t) => t.amount));
+  // The other side of a transfer with an untracked account: without it the money that left would look
+  // spent (or, coming in, earned).
+  let outsideTransfers = 0;
+  for (const t of ds.transfers) {
+    if (t.date <= from || t.date > to) continue;
+    if (t.toAccountId === null && t.fromAccountId !== null && counted.has(t.fromAccountId))
+      outsideTransfers += t.amount;
+    if (t.fromAccountId === null && t.toAccountId !== null && counted.has(t.toAccountId))
+      outsideTransfers -= t.amount;
+  }
+
+  const transfers = sum(transfersByAccount.map((t) => t.amount)) + outsideTransfers;
   const spending = income - spendingAccountsDelta - transfers;
   if (spending < 0) warnings.push(warning("negative_spending", { from, to, detail: spending }));
 
@@ -181,6 +223,7 @@ function computePeriod(ds: Dataset, from: IsoDate, to: IsoDate): PeriodSpending 
     spendingAccountsDelta,
     transfers,
     transfersByAccount,
+    outsideTransfers,
     spending,
     monthlySpending: spending / months,
     warnings,

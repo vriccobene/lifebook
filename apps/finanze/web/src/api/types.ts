@@ -22,11 +22,13 @@ export interface AccountParamsEntry {
   id: string;
   validFrom: string;
   isSpendingAccount?: boolean;
+  isIncomeAccount?: boolean;
   inInvestableCapital?: boolean;
   expectedReturn?: number | null;
   passiveYield?: number | null;
   taxRate?: number;
   interestRate?: number | null;
+  propertyValue?: number | null;
   monthlyPayment?: number | null;
   paymentEndDate?: string | null;
 }
@@ -57,6 +59,18 @@ export interface Contribution {
   accountId: string;
   date: string;
   amount: number;
+}
+
+/** A transfer imported from Firefly III. A side is null when its Firefly III account is not linked. */
+export interface Transfer {
+  id: string;
+  date: string;
+  amount: number;
+  fromAccountId: string | null;
+  toAccountId: string | null;
+  fromName: string;
+  toName: string;
+  description: string;
 }
 
 export type IncomeItem = { id: string; name: string; amount: number } & (
@@ -193,6 +207,7 @@ export interface FireflyImportResult {
   from: string;
   to: string;
   dates: string[];
+  transfers: ImportCounts;
   accounts: {
     accountId: string;
     accountName: string;

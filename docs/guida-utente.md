@@ -83,6 +83,46 @@ Nel giro mensile i contributi si inseriscono con la data del giro. La schermata 
 
 Le singole spese non si registrano: il costo della vita si deduce dai saldi.
 
+### Quando la stima delle spese è attendibile
+
+Per ogni intervallo tra due letture, il calcolo è:
+
+```text
+spese = entrate nette − variazione complessiva dei conti di spesa
+        − versamenti netti verso i conti non di spesa
+```
+
+Un trasferimento tra due conti di spesa si annulla nella variazione complessiva.
+Un versamento a un investimento viene sottratto dalle spese; un prelievo ha segno
+negativo. Sui conti a contributi dichiarati, una perdita di mercato non aumenta le
+spese, purché tutti i versamenti e prelievi siano registrati. La sola variazione del
+saldo non permette di distinguere un prelievo da una perdita.
+
+Sui conti con contributi dedotti, la variazione del saldo viene depurata
+dell'interesse stimato al tasso impostato. È quindi una stima: un rendimento
+effettivo diverso dal tasso previsto si riflette sulle spese. Per un investimento
+con valore variabile usa i contributi dichiarati e registra i trasferimenti.
+
+Per confrontare Excel e Firefly III, usa le stesse date di osservazione: un saldo
+al **1° febbraio**, se rilevato all'inizio del giorno, corrisponde alla chiusura del
+**31 gennaio**, non del 28 febbraio. Non convertire celle vuote in saldi zero.
+Le letture di tutti i conti devono riferirsi allo stesso intervallo; letture
+sfalsate possono far apparire un giroconto come spesa in un mese e compensarlo
+soltanto in quello successivo.
+
+Le entrate devono corrispondere agli accrediti effettivi dell'intervallo. Se lo
+stipendio varia, puoi usare le entrate una tantum già disponibili. Tredicesima e
+bonus devono avere la data di incasso, senza duplicare una voce ricorrente.
+Un interesse o un affitto accreditato su un conto di spesa va incluso tra le
+entrate. Saldi rimasti invariati e stipendio ricorrente configurato implicano
+matematicamente che tutto lo stipendio sia stato speso: non provano che i
+movimenti siano completi.
+
+Controlla anche la data «valido dal» del flag **conto di spesa**: se vuoi
+riclassificare tutto lo storico, scegli una data precedente alla prima lettura.
+Il tipo del conto e l'inclusione nel capitale investibile sono impostazioni
+distinte dal suo utilizzo come conto di spesa.
+
 ## Import da Firefly III
 
 Se tieni i conti in [Firefly III](https://www.firefly-iii.org), la pagina **Firefly III** importa da lì i saldi e i trasferimenti. Il collegamento è personale: ogni utente usa il proprio Firefly III e il proprio token.
@@ -95,8 +135,17 @@ Cosa viene importato:
 
 - **Saldi:** il saldo di ogni conto collegato a ogni **fine mese** del periodo, come lo calcola Firefly III per quel giorno. Le passività diventano negative. I mesi prima che il conto esistesse in Firefly III vengono saltati, così non nascono saldi a zero finti.
 - **Contributi:** i movimenti tra due tuoi conti di Firefly III (trasferimenti, rate pagate a un mutuo o a un prestito), con la stessa regola della schermata Trasferimenti: una voce solo sui conti a contributi dichiarati (titoli, investimenti esterni, fondi pensione, passività), positiva su chi riceve e negativa su chi cede. Entrate e spese (stipendio, spesa, dividendi) non sono contributi: si leggono dai saldi. Stipendio e altre entrate vanno comunque inseriti in **Entrate**.
+- **Trasferimenti:** ogni movimento tra due tuoi conti di Firefly III, qualunque sia il tipo del conto in Lifebook (anche dal conto corrente al deposito), con data, conto di partenza, conto di arrivo, importo e descrizione. Li trovi nella pagina **Trasferimenti**, in «Trasferimenti importati da Firefly III», filtrabili per conto. Se uno dei due conti non è collegato compare il suo nome in Firefly III. Entrano nel calcolo del costo della vita e dei rendimenti: un trasferimento non viene mai scambiato per una spesa o per un guadagno. Per depositi e immobili letti da Firefly III si usano i trasferimenti veri al posto della stima dal tasso dichiarato; il denaro spostato verso un tuo conto di Firefly III non collegato non conta come spesa. Sui conti a contributi dichiarati il trasferimento è già un contributo e non viene contato due volte. Si correggono in Firefly III e si aggiornano al prossimo import.
 
 Puoi importare di nuovo quando vuoi, anche lo stesso periodo: i dati importati vengono aggiornati, e i movimenti cancellati in Firefly III spariscono anche da Lifebook, senza duplicati. Quello che hai inserito a mano non viene mai sovrascritto: se un tuo saldo è diverso da quello di Firefly III resta il tuo e l'import lo segnala, e un contributo già inserito a mano con la stessa data e lo stesso importo non viene importato di nuovo.
+
+Un saldo zero viene importato anche come prima lettura se Firefly III fornisce
+una data di apertura già trascorsa. Senza data di apertura né storico precedente,
+gli zeri iniziali vengono saltati perché non se ne può stabilire il significato.
+Importi non validi o una paginazione oltre il limite supportato interrompono
+l'import prima del salvataggio. Un movimento già importato che cambia in una
+valuta non supportata viene segnalato e conserva il valore precedente: occorre
+risolvere l'avviso prima di considerare aggiornato il calcolo.
 
 ## Leggere il cruscotto
 

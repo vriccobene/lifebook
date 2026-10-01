@@ -20,6 +20,9 @@ import { OWN_ACCOUNT_TYPES, type FireflyAccount, type FireflySplit } from "./cli
  *   Lifebook accounts that take declared contributions, with the same sign rule as the Transfers screen.
  *   Imported entries carry `firefly:<journal id>`, so a new import of the same range updates them and removes
  *   the ones deleted in Firefly III, without duplicating anything.
+ * - Transfers: every movement between two of the user's own Firefly III accounts with at least one linked
+ *   side, whatever the Lifebook type of the accounts, kept as a record of the movement (from, to, amount).
+ *   They carry the same `firefly:<journal id>` and follow edits and deletions in the same way.
  */
 
 export const MAX_IMPORT_MONTHS = 120;
@@ -41,6 +44,18 @@ export interface ExistingContribution {
   externalId: string | null;
 }
 
+export interface ExistingTransfer {
+  id: string;
+  date: IsoDate;
+  amountCents: number;
+  fromAccountId: string | null;
+  toAccountId: string | null;
+  fromName: string;
+  toName: string;
+  description: string;
+  externalId: string;
+}
+
 export interface PlanInput {
   from: IsoDate;
   to: IsoDate;
@@ -54,6 +69,8 @@ export interface PlanInput {
   /** Snapshots and contributions of the linked accounts in the range. */
   snapshots: ExistingSnapshot[];
   contributions: ExistingContribution[];
+  /** The user's imported transfers in the range, plus those whose journal was fetched again. */
+  transfers?: ExistingTransfer[];
   /** Linked accounts that already have a snapshot before `from`. */
   accountsWithEarlierHistory: Set<string>;
 }
@@ -101,6 +118,11 @@ export interface ImportPlan {
   }[];
   updateContributions: { id: string; date: IsoDate; amountCents: number }[];
   deleteContributions: string[];
+  createTransfers: Omit<ExistingTransfer, "id">[];
+  updateTransfers: ExistingTransfer[];
+  deleteTransfers: string[];
+  /** Transfers counts for the whole import (`kept` is always 0). */
+  transfers: Counts;
   accounts: AccountReport[];
   warnings: ImportWarning[];
 }
@@ -129,6 +151,10 @@ export function planImport(input: PlanInput): ImportPlan {
     createContributions: [],
     updateContributions: [],
     deleteContributions: [],
+    createTransfers: [],
+    updateTransfers: [],
+    deleteTransfers: [],
+    transfers: counts(),
     accounts: [],
     warnings: [],
   };
@@ -170,8 +196,13 @@ export function planImport(input: PlanInput): ImportPlan {
     for (const [date, reading] of readings) {
       if (!reading || !isOpen(account, date)) continue;
       if (reading.openingBalanceDate && date < reading.openingBalanceDate) continue;
-      // Before its first movement a Firefly III account reads 0: that is not a real balance.
-      if (!started && reading.currentBalance === 0) continue;
+      if (reading.currencyCode && reading.currencyCode !== "EUR") {
+        warn("currency_not_supported", date, reading.currencyCode);
+        continue;
+      }
+      // A known opening date establishes that a zero balance is real. Without it, retain
+      // the conservative behaviour for accounts whose history has not started yet.
+      if (!started && !reading.openingBalanceDate && reading.currentBalance === 0) continue;
       started = true;
       const euros =
         account.type === "liability" ? -Math.abs(reading.currentBalance) : reading.currentBalance;
@@ -193,6 +224,7 @@ export function planImport(input: PlanInput): ImportPlan {
 
     // Contributions
     const wanted = new Map<string, { date: IsoDate; amountCents: number }>();
+    const unsupported = new Set<string>();
     for (const split of input.splits.get(link.fireflyAccountId) ?? []) {
       if (split.date < input.from || split.date > input.to) continue;
       if (!OWN_ACCOUNT_TYPES.has(split.sourceType) || !OWN_ACCOUNT_TYPES.has(split.destinationType))
@@ -208,6 +240,7 @@ export function planImport(input: PlanInput): ImportPlan {
       if (contributionRole(account, split.date) !== "declared") continue;
       if (split.currencyCode && split.currencyCode !== "EUR") {
         warn("transaction_currency_not_supported", split.date, split.description);
+        unsupported.add(importedContributionId(split.journalId));
         continue;
       }
       wanted.set(importedContributionId(split.journalId), {
@@ -247,9 +280,95 @@ export function planImport(input: PlanInput): ImportPlan {
     }
     // Imported earlier, now gone from Firefly III (or no longer a contribution).
     for (const stale of imported.values()) {
+      // An unsupported currency is not evidence that the movement was deleted.
+      if (unsupported.has(stale.externalId!)) continue;
       plan.deleteContributions.push(stale.id);
       report.contributions.deleted++;
     }
   }
+  planTransfers(input, plan);
   return plan;
+}
+
+const isOwnMovement = (split: FireflySplit) =>
+  OWN_ACCOUNT_TYPES.has(split.sourceType) &&
+  OWN_ACCOUNT_TYPES.has(split.destinationType) &&
+  split.sourceId !== split.destinationId;
+
+function planTransfers(input: PlanInput, plan: ImportPlan): void {
+  const linked = new Map(
+    input.links
+      .filter((l) => input.accounts.some((a) => a.id === l.accountId))
+      .map((l) => [l.fireflyAccountId, l.accountId]),
+  );
+  // A transfer between two linked accounts shows up in the transactions of both: keep it once.
+  const wanted = new Map<string, Omit<ExistingTransfer, "id">>();
+  const unsupported = new Set<string>();
+  for (const [fireflyAccountId, splits] of input.splits) {
+    const accountId = linked.get(fireflyAccountId);
+    if (!accountId) continue;
+    for (const split of splits) {
+      if (split.date < input.from || split.date > input.to || !isOwnMovement(split)) continue;
+      const externalId = importedContributionId(split.journalId);
+      if (wanted.has(externalId)) continue;
+      if (split.currencyCode && split.currencyCode !== "EUR") {
+        unsupported.add(externalId);
+        const duplicate = plan.warnings.some(
+          (w) =>
+            w.code === "transaction_currency_not_supported" &&
+            w.date === split.date &&
+            w.detail === split.description,
+        );
+        if (!duplicate)
+          plan.warnings.push({
+            code: "transaction_currency_not_supported",
+            accountId,
+            date: split.date,
+            detail: split.description,
+          });
+        continue;
+      }
+      wanted.set(externalId, {
+        date: split.date,
+        amountCents: eurosToCents(split.amount),
+        fromAccountId: linked.get(split.sourceId) ?? null,
+        toAccountId: linked.get(split.destinationId) ?? null,
+        fromName: split.sourceName,
+        toName: split.destinationName,
+        description: split.description,
+        externalId,
+      });
+    }
+  }
+
+  const linkedAccounts = new Set(linked.values());
+  const existing = new Map((input.transfers ?? []).map((t) => [t.externalId, t]));
+  for (const [externalId, entry] of wanted) {
+    const current = existing.get(externalId);
+    existing.delete(externalId);
+    if (!current) {
+      plan.createTransfers.push(entry);
+      plan.transfers.created++;
+    } else if (
+      (Object.keys(entry) as (keyof typeof entry)[]).every((k) => current[k] === entry[k])
+    ) {
+      plan.transfers.unchanged++;
+    } else {
+      plan.updateTransfers.push({ id: current.id, ...entry });
+      plan.transfers.updated++;
+    }
+  }
+  // Gone from Firefly III. Only where the import looked: in the range, on an account still linked.
+  for (const stale of existing.values()) {
+    // Match the contribution import: an unsupported currency is not a deleted movement.
+    if (unsupported.has(stale.externalId)) continue;
+    if (stale.date < input.from || stale.date > input.to) continue;
+    if (
+      !(stale.fromAccountId && linkedAccounts.has(stale.fromAccountId)) &&
+      !(stale.toAccountId && linkedAccounts.has(stale.toAccountId))
+    )
+      continue;
+    plan.deleteTransfers.push(stale.id);
+    plan.transfers.deleted++;
+  }
 }

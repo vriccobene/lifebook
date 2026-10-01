@@ -22,6 +22,7 @@ const period = (to: string, income: number, spending: number, months = 1) => ({
   spendingAccountsDelta: 0,
   transfers: 0,
   transfersByAccount: [],
+  outsideTransfers: 0,
   spending,
   monthlySpending: spending / months,
   warnings: [],

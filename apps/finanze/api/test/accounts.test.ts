@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { accounts } from "../src/db/schema";
+import { accountParams, accounts } from "../src/db/schema";
 import { addUser, createTestApp, setupUser, type Api, type TestApp } from "./helpers";
 
 let t: TestApp;
@@ -69,6 +69,21 @@ describe("accounts", () => {
       interestRate: 0.03,
       paymentEndDate: "2040-01-31",
     });
+  });
+
+  it("stores the value of a property in cents and counts it in the net worth (regression)", async () => {
+    const res = await api.post("/accounts", {
+      name: "Holywell",
+      type: "real_estate",
+      realEstateUse: "income",
+      params: [{ validFrom: "2026-01-01", propertyValue: 370_000.5 }],
+    });
+    expect(res.body.params[0].propertyValue).toBe(370_000.5);
+    const [row] = t.db.select().from(accountParams).all();
+    expect(JSON.parse(row!.patch).propertyValue).toBe(37_000_050);
+    await api.post("/snapshots", { accountId: res.body.id, date: "2026-01-31", balance: 1_000 });
+    const netWorth = (await api.get("/results/net-worth?asOf=2026-01-31")).body.netWorth;
+    expect(netWorth).toBe(371_000.5);
   });
 
   it("updates, archives and lists archived accounts", async () => {

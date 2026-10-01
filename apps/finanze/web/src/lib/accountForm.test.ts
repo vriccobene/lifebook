@@ -42,6 +42,7 @@ describe("account parameters form", () => {
     expect(errors).toEqual({});
     expect(entry).toEqual({
       validFrom: "2026-01-01",
+      isIncomeAccount: false,
       inInvestableCapital: true,
       taxRate: 0.26,
       passiveYield: 0.025,
@@ -52,6 +53,39 @@ describe("account parameters form", () => {
     const form = { ...emptyParamsForm("checking", null, "2026-01-01"), isSpendingAccount: true };
     expect(paramsFormToEntry(form, "checking").entry.isSpendingAccount).toBe(true);
     expect(paramsFormToEntry(form, "brokerage").entry).not.toHaveProperty("isSpendingAccount");
+  });
+
+  it("sends the income-account flag except for liabilities and real estate", () => {
+    const form = { ...emptyParamsForm("checking", null, "2026-01-01"), isIncomeAccount: true };
+    expect(paramsFormToEntry(form, "checking").entry.isIncomeAccount).toBe(true);
+    expect(paramsFormToEntry(form, "brokerage").entry.isIncomeAccount).toBe(true);
+    expect(paramsFormToEntry(form, "liability").entry).not.toHaveProperty("isIncomeAccount");
+    expect(paramsFormToEntry(form, "real_estate").entry).not.toHaveProperty("isIncomeAccount");
+    expect(
+      entryToParamsForm(
+        { validFrom: "2026-01-01", isIncomeAccount: true } as never,
+        "checking",
+        null,
+      ).isIncomeAccount,
+    ).toBe(true);
+  });
+
+  it("reads and sends the value of a property, only for real estate", () => {
+    const form = {
+      ...emptyParamsForm("real_estate", "income", "2026-01-01"),
+      propertyValue: "370000",
+    };
+    expect(paramsFormToEntry(form, "real_estate").entry.propertyValue).toBe(370_000);
+    expect(paramsFormToEntry(form, "checking").entry).not.toHaveProperty("propertyValue");
+    expect(
+      paramsFormToEntry({ ...form, propertyValue: "-1" }, "real_estate").errors.propertyValue,
+    ).toBeTruthy();
+    const back = entryToParamsForm(
+      { validFrom: "2026-01-01", propertyValue: 370_000 } as never,
+      "real_estate",
+      "income",
+    );
+    expect(back.propertyValue).not.toBe("");
   });
 
   it("allows a negative expected return but rejects invalid percentages", () => {
