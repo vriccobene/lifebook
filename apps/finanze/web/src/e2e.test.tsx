@@ -706,5 +706,15 @@ describe("Firefly III import", () => {
       [ends[5], 400],
     ]);
     expect(screen.getByText(/Ultimo import il/)).toBeTruthy();
+    expect(screen.getByText(/Trasferimenti tra i tuoi conti:/).parentElement!.textContent).toMatch(
+      /1 nuovi/,
+    );
+
+    // The transfer is listed on the Transfers screen, from one account to the other.
+    go("#/trasferimenti");
+    const card = (await screen.findByText("Trasferimenti importati da Firefly III")).closest(
+      "section, .card, div",
+    )!;
+    expect(card.parentElement!.textContent).toMatch(/BBVA.*Broker.*Investimento/);
   });
 });

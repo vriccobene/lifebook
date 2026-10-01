@@ -28,11 +28,19 @@ export const accountTypeSchema = z.enum([
 export const accountParamsPatchSchema = z
   .object({
     isSpendingAccount: z.boolean(),
+    isIncomeAccount: z
+      .boolean()
+      .describe("The account the income is paid into: there it is not a gain"),
     inInvestableCapital: z.boolean(),
     expectedReturn: z.number().min(-1).max(1).nullable(),
     passiveYield: z.number().min(0).max(1).nullable(),
     taxRate: rate,
     interestRate: z.number().min(0).max(1).nullable(),
+    propertyValue: z
+      .number()
+      .min(0)
+      .nullable()
+      .describe("Real estate: value of the property in euro; the balance is then its cash"),
     monthlyPayment: z.number().min(0).nullable(),
     paymentEndDate: dateSchema.nullable(),
   })

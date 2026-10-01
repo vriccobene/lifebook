@@ -10,6 +10,7 @@ import {
   entrySummary,
   entryToParamsForm,
   paramsFormToEntry,
+  takesIncome,
   type ParamsForm,
 } from "../lib/accountForm";
 import { todayIso } from "../lib/dates";
@@ -51,6 +52,19 @@ function ParamsFields({
           />
         </Field>
       )}
+      {takesIncome(type) && (
+        <Field
+          label="Conto delle entrate"
+          check
+          hint="Dove arrivano lo stipendio e le altre voci di Entrate: qui non sono un rendimento."
+        >
+          <input
+            type="checkbox"
+            checked={form.isIncomeAccount}
+            onChange={(e) => set("isIncomeAccount", e.target.checked)}
+          />
+        </Field>
+      )}
       <Field label="Nel capitale investibile" check>
         <input
           type="checkbox"
@@ -64,6 +78,19 @@ function ParamsFields({
       {percent("taxRate", "Tassazione", "Es. 26, 12,5, 21")}
       {(type === "deposit" || type === "liability" || type === "checking") &&
         percent("interestRate", "Tasso dichiarato")}
+      {type === "real_estate" && (
+        <Field
+          label="Valore dell'immobile (€)"
+          hint="Aggiornalo con una nuova voce datata quando cambia. Se lo indichi, il saldo del conto è la cassa dell'immobile (gli affitti incassati, ad esempio da Firefly III) e il rendimento si calcola su questo valore."
+          error={errors.propertyValue}
+        >
+          <input
+            inputMode="decimal"
+            value={form.propertyValue}
+            onChange={(e) => set("propertyValue", e.target.value)}
+          />
+        </Field>
+      )}
       {type === "liability" && (
         <>
           <Field label="Rata mensile (€)" error={errors.monthlyPayment}>

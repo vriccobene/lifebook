@@ -9,7 +9,21 @@ export interface ReturnSummary {
   net: number | null;
   grossAnnualized: number | null;
   netAnnualized: number | null;
+  /** Gains in euro over the range: the sum of the periods. */
+  grossGain: number;
+  netGain: number;
   passiveNet: number;
+}
+
+const total = (values: readonly number[]) => values.reduce((sum, v) => sum + v, 0);
+
+/**
+ * Share of the whole net gain that comes from each account. Null when the total is zero; a share can be
+ * negative (an account that lost) or above 100% (when others lost).
+ */
+export function gainShare(summary: ReturnSummary, whole: ReturnSummary | null): number | null {
+  if (!whole || whole.netGain === 0) return null;
+  return summary.netGain / whole.netGain;
 }
 
 function annualize(pct: number | null, days: number): number | null {
@@ -33,7 +47,9 @@ export function accountSummaries(returns: ReturnsPayload, range: DateRange): Ret
       net: linked.net,
       grossAnnualized: linked.grossAnnualized,
       netAnnualized: linked.netAnnualized,
-      passiveNet: records.reduce((total, r) => total + r.passiveNet, 0),
+      grossGain: total(records.map((r) => r.grossGain)),
+      netGain: total(records.map((r) => r.netGain)),
+      passiveNet: total(records.map((r) => r.passiveNet)),
     };
   });
 }
@@ -64,6 +80,8 @@ export function totalSummary(returns: ReturnsPayload, range: DateRange): ReturnS
     net,
     grossAnnualized: annualize(gross, days),
     netAnnualized: annualize(net, days),
-    passiveNet: totals.reduce((total, t) => total + t.passiveNet, 0),
+    grossGain: total(totals.map((t) => t.grossGain)),
+    netGain: total(totals.map((t) => t.netGain)),
+    passiveNet: total(totals.map((t) => t.passiveNet)),
   };
 }

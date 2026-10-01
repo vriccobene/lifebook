@@ -1,9 +1,20 @@
-import { contributionsBetween, isActive, paramsAt, readingAt, sum, type Dataset } from "./dataset";
+import {
+  contributionsBetween,
+  incomeInto,
+  isActive,
+  movementsKnown,
+  paramsAt,
+  readingAt,
+  sum,
+  transfersBetween,
+  type Dataset,
+} from "./dataset";
 import { DAYS_PER_YEAR, daysBetween, type IsoDate } from "./dates";
 import { accruedInterest } from "./livingCost";
 import type { Account } from "./types";
 
-export type ReturnMethod = "declared" | "inferred" | "real_estate_income" | "appreciation";
+export type ReturnMethod =
+  "declared" | "inferred" | "real_estate_income" | "appreciation" | "property_value";
 
 /** Return of one account between two of its own consecutive readings. */
 export interface AccountReturn {
@@ -14,7 +25,7 @@ export interface AccountReturn {
   method: ReturnMethod;
   opening: number;
   closing: number;
-  /** Net contributions inside the interval (declared accounts). */
+  /** Net contributions inside the interval: declared, or the transfers known from Firefly III. */
   contributions: number;
   grossGain: number;
   tax: number;
@@ -83,9 +94,33 @@ function returnFor(
   let passiveGross: number;
   let contributions = 0;
   let base: number;
+  // Deposits and real estate have no declared contributions: when Firefly III knows their transfers, the
+  // money moved in or out is not a gain.
+  const known = movementsKnown(ds, account.id, opening.date, closing.date)
+    ? transfersBetween(ds, account.id, opening.date, closing.date)
+    : null;
+  // The salary paid into the income account is money coming in, not a gain.
+  const income = incomeInto(ds, account, opening.date, closing.date);
 
-  if (account.type === "real_estate") {
-    const appreciation = closing.balance - opening.balance;
+  const openingValue =
+    account.type === "real_estate" ? paramsAt(account, opening.date).propertyValue : null;
+
+  if (account.type === "real_estate" && (openingValue !== null || params.propertyValue !== null)) {
+    // The balance is the property's cash: what it collects net of what is moved out is the rent. The
+    // gain is that plus the change of value, on a base that includes the value of the property.
+    method = "property_value";
+    const flows = known ?? [];
+    contributions = sum(flows.map((t) => t.amount));
+    const rent = closing.balance - opening.balance - contributions;
+    const startValue = openingValue ?? params.propertyValue!;
+    const appreciation = (params.propertyValue ?? startValue) - startValue;
+    grossGain = rent + appreciation;
+    tax = Math.max(rent, 0) * params.taxRate;
+    passiveGross = rent;
+    base = dietzBase(opening.balance + startValue, flows, opening.date, closing.date);
+  } else if (account.type === "real_estate") {
+    contributions = known ? sum(known.map((t) => t.amount)) : 0;
+    const appreciation = closing.balance - opening.balance - contributions;
     const rent =
       account.realEstateUse === "income"
         ? (opening.balance * (params.passiveYield ?? 0) * days) / DAYS_PER_YEAR
@@ -95,16 +130,23 @@ function returnFor(
     // The tax regime of a rental (e.g. cedolare secca) applies to the rent, not to the revaluation.
     tax = Math.max(rent, 0) * params.taxRate;
     passiveGross = rent;
-    base = opening.balance;
+    base = known ? dietzBase(opening.balance, known, opening.date, closing.date) : opening.balance;
   } else if (account.contributionsMode === "inferred") {
     method = "inferred";
-    grossGain = accruedInterest(opening.balance, params.interestRate ?? 0, days);
+    if (known) {
+      const flows = [...known, ...income];
+      contributions = sum(flows.map((t) => t.amount));
+      grossGain = closing.balance - opening.balance - contributions;
+      base = dietzBase(opening.balance, flows, opening.date, closing.date);
+    } else {
+      grossGain = accruedInterest(opening.balance, params.interestRate ?? 0, days);
+      base = opening.balance;
+    }
     tax = Math.max(grossGain, 0) * params.taxRate;
     passiveGross = grossGain;
-    base = opening.balance;
   } else {
     method = "declared";
-    const list = contributionsBetween(ds, account.id, opening.date, closing.date);
+    const list = [...contributionsBetween(ds, account.id, opening.date, closing.date), ...income];
     contributions = sum(list.map((c) => c.amount));
     grossGain = closing.balance - opening.balance - contributions;
     tax = Math.max(grossGain, 0) * params.taxRate;

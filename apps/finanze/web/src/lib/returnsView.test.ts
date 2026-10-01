@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ReturnsPayload } from "../api/types";
-import { accountSummaries, totalSummary } from "./returnsView";
+import { accountSummaries, gainShare, totalSummary } from "./returnsView";
 
 const record = (
   accountId: string,
@@ -61,6 +61,46 @@ const returns = {
 const all = { from: "2000-01-01", to: "2100-01-01" };
 
 describe("returns summary", () => {
+  it("adds up the gains in euro and gives each account's share of the total", () => {
+    const withGains = {
+      records: [
+        { ...record("a", "2026-01-01", "2026-01-31", 30, 0.1, 0.08), grossGain: 100, netGain: 80 },
+        { ...record("a", "2026-01-31", "2026-03-02", 30, 0.1, 0.08), grossGain: 50, netGain: 40 },
+        {
+          ...record("b", "2026-01-01", "2026-01-31", 30, -0.05, -0.05),
+          grossGain: -40,
+          netGain: -40,
+        },
+      ],
+      totals: [
+        {
+          date: "2026-01-31",
+          grossGain: 60,
+          netGain: 40,
+          base: 0,
+          grossPct: 0,
+          netPct: 0,
+          passiveNet: 0,
+        },
+        {
+          date: "2026-03-02",
+          grossGain: 50,
+          netGain: 40,
+          base: 0,
+          grossPct: 0,
+          netPct: 0,
+          passiveNet: 0,
+        },
+      ],
+    } as unknown as ReturnsPayload;
+    const [a, b] = accountSummaries(withGains, all);
+    const whole = totalSummary(withGains, all)!;
+    expect([a!.grossGain, a!.netGain, whole.netGain]).toEqual([150, 120, 80]);
+    expect(gainShare(a!, whole)).toBe(1.5); // above 100%: the other account lost
+    expect(gainShare(b!, whole)).toBe(-0.5);
+    expect(gainShare(a!, { ...whole, netGain: 0 })).toBeNull();
+  });
+
   it("chains the period returns of each account and adds up the passive income", () => {
     const [a, b] = accountSummaries(returns, all);
     expect(a!.gross).toBeCloseTo(1.1 * 1.1 - 1, 12);

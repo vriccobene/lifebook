@@ -37,8 +37,10 @@ export interface FireflySplit {
   currencyCode: string | null;
   sourceId: string;
   sourceType: string;
+  sourceName: string;
   destinationId: string;
   destinationType: string;
+  destinationName: string;
   description: string;
 }
 
@@ -73,8 +75,10 @@ interface TransactionResource {
       currency_code?: string | null;
       source_id: string | number;
       source_type: string;
+      source_name?: string | null;
       destination_id: string | number;
       destination_type: string;
+      destination_name?: string | null;
       description?: string;
     }[];
   };
@@ -221,8 +225,10 @@ export class FireflyClient {
         currencyCode: s.currency_code ?? null,
         sourceId: String(s.source_id),
         sourceType: s.source_type,
+        sourceName: s.source_name ?? "",
         destinationId: String(s.destination_id),
         destinationType: s.destination_type,
+        destinationName: s.destination_name ?? "",
         description: s.description ?? "",
       })),
     );

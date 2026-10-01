@@ -7,7 +7,7 @@ import { useRangeControl } from "../components/RangeControl";
 import { Card, EmptyState, Loading, QueryError } from "../components/ui";
 import { returnsRows } from "../lib/charts";
 import { formatDate, formatEuro, formatPercent } from "../lib/format";
-import { accountSummaries, totalSummary, type ReturnSummary } from "../lib/returnsView";
+import { accountSummaries, gainShare, totalSummary, type ReturnSummary } from "../lib/returnsView";
 import { inRange } from "../lib/range";
 
 const METHOD_TEXT = {
@@ -15,6 +15,7 @@ const METHOD_TEXT = {
   inferred: "interessi al tasso dichiarato",
   real_estate_income: "affitto netto più rivalutazione",
   appreciation: "rivalutazione",
+  property_value: "affitti incassati più rivalutazione, sul valore dell'immobile",
 } as const;
 
 export function Returns() {
@@ -42,6 +43,9 @@ export function Returns() {
       <td className="num">{formatPercent(s.net, 2)}</td>
       <td className="num">{formatPercent(s.grossAnnualized, 2)}</td>
       <td className="num">{formatPercent(s.netAnnualized, 2)}</td>
+      <td className="num">{formatEuro(s.grossGain)}</td>
+      <td className="num">{formatEuro(s.netGain)}</td>
+      <td className="num">{formatPercent(gainShare(s, total), 1)}</td>
       <td className="num">{formatEuro(s.passiveNet)}</td>
     </tr>
   );
@@ -71,6 +75,9 @@ export function Returns() {
                     <th className="num">Netto</th>
                     <th className="num">Lordo annuo</th>
                     <th className="num">Netto annuo</th>
+                    <th className="num">Guadagno lordo</th>
+                    <th className="num">Guadagno netto</th>
+                    <th className="num">Quota del totale</th>
                     <th className="num">Rendite passive nette</th>
                   </tr>
                 </thead>
@@ -82,7 +89,9 @@ export function Returns() {
             </div>
             <p className="muted small">
               Rendimento cumulato dei periodi (composto), con il metodo Modified Dietz per pesare i
-              versamenti. Il netto applica l'aliquota del conto.
+              versamenti. Il netto applica l'aliquota del conto. I guadagni sono in euro, sommati
+              sui periodi; la quota del totale è la parte del guadagno netto complessivo che viene
+              da ogni conto (negativa se il conto ha perso).
             </p>
           </Card>
 

@@ -1,3 +1,4 @@
+import { incomeReceipts } from "./income";
 import { resolveAccountParams } from "./params";
 import { resolveSettings, type Settings, type SettingsEntry } from "./settings";
 import type { IsoDate } from "./dates";
@@ -9,6 +10,7 @@ import type {
   Contribution,
   EssentialSpendingEntry,
   IncomeItem,
+  Transfer,
 } from "./types";
 
 /** Everything the user has entered. Persistence is the caller's concern. */
@@ -16,6 +18,8 @@ export interface LifebookData {
   accounts: Account[];
   snapshots: BalanceSnapshot[];
   contributions: Contribution[];
+  /** Transfers imported from Firefly III. */
+  transfers?: Transfer[];
   incomeItems: IncomeItem[];
   essentialSpending: EssentialSpendingEntry[];
   settings: SettingsEntry[];
@@ -31,6 +35,7 @@ export interface Dataset {
   accounts: Account[];
   readings: Map<string, BalanceSnapshot[]>;
   contributions: Map<string, Contribution[]>;
+  transfers: Transfer[];
   incomeItems: IncomeItem[];
   essentialSpending: EssentialSpendingEntry[];
 }
@@ -64,6 +69,7 @@ export function prepareDataset(data: LifebookData, asOf: IsoDate): Dataset {
     accounts: data.accounts,
     readings,
     contributions,
+    transfers: (data.transfers ?? []).filter((t) => t.date <= asOf),
     incomeItems: data.incomeItems,
     essentialSpending: data.essentialSpending.filter((entry) =>
       entry.mode === "month_amount" ? entry.month <= asOfMonth : entry.validFrom <= asOf,
@@ -106,8 +112,59 @@ export function contributionsBetween(
   return (ds.contributions.get(accountId) ?? []).filter((c) => c.date > from && c.date <= to);
 }
 
+/**
+ * Income paid into an account with `from < date <= to`: the whole income when it is the only income
+ * account at the payment date, a share when there are several.
+ */
+export function incomeInto(
+  ds: Dataset,
+  account: Account,
+  from: IsoDate,
+  to: IsoDate,
+): { date: IsoDate; amount: number }[] {
+  return incomeReceipts(ds.incomeItems, from, to).flatMap((receipt) => {
+    if (!paramsAt(account, receipt.date).isIncomeAccount) return [];
+    const receivers = ds.accounts.filter(
+      (a) => isActive(a, receipt.date) && paramsAt(a, receipt.date).isIncomeAccount,
+    ).length;
+    return [{ date: receipt.date, amount: receipt.amount / receivers }];
+  });
+}
+
 export function sum(values: Iterable<number>): number {
   let total = 0;
   for (const value of values) total += value;
   return total;
+}
+
+/**
+ * Whether the movements of an account between two dates are known from Firefly III: both readings were
+ * imported, and the import brings every transfer of the account in the same range. Then the transfers
+ * are the account's exact net inflow and no estimate is needed.
+ */
+export function movementsKnown(
+  ds: Dataset,
+  accountId: string,
+  from: IsoDate,
+  to: IsoDate,
+): boolean {
+  const opening = readingAt(ds, accountId, from);
+  const closing = readingAt(ds, accountId, to);
+  return opening?.source === "firefly" && closing?.source === "firefly";
+}
+
+/** Transfers of an account with `from < date <= to`, signed: positive into the account, negative out. */
+export function transfersBetween(
+  ds: Dataset,
+  accountId: string,
+  from: IsoDate,
+  to: IsoDate,
+): { date: IsoDate; amount: number }[] {
+  const flows: { date: IsoDate; amount: number }[] = [];
+  for (const t of ds.transfers) {
+    if (t.date <= from || t.date > to || t.fromAccountId === t.toAccountId) continue;
+    if (t.toAccountId === accountId) flows.push({ date: t.date, amount: t.amount });
+    if (t.fromAccountId === accountId) flows.push({ date: t.date, amount: -t.amount });
+  }
+  return flows;
 }

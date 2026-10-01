@@ -44,8 +44,10 @@ export function balancesAt(ds: Dataset): AccountBalance[] {
   for (const account of ds.accounts) {
     if (!isActive(account, ds.asOf)) continue;
     const reading = readingAt(ds, account.id, ds.asOf);
-    if (!reading) continue;
-    result.push({ account, params: paramsAt(account, ds.asOf), balance: reading.balance });
+    const params = paramsAt(account, ds.asOf);
+    const value = account.type === "real_estate" ? params.propertyValue : null;
+    if (!reading && value === null) continue;
+    result.push({ account, params, balance: (reading?.balance ?? 0) + (value ?? 0) });
   }
   return result;
 }

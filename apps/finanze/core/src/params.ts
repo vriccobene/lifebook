@@ -11,11 +11,13 @@ export function defaultAccountParams(
     !(account.type === "real_estate" && account.realEstateUse !== "income");
   return {
     isSpendingAccount: false,
+    isIncomeAccount: false,
     inInvestableCapital: investableByDefault,
     expectedReturn: null,
     passiveYield: null,
     taxRate: 0,
     interestRate: null,
+    propertyValue: null,
     monthlyPayment: null,
     paymentEndDate: null,
   };

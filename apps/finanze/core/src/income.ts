@@ -15,15 +15,24 @@ function occurrences(item: Extract<IncomeItem, { kind: "recurring" }>, upTo: Iso
   return dates;
 }
 
+/** Each net income payment with `from < date <= to`. */
+export function incomeReceipts(
+  items: readonly IncomeItem[],
+  from: IsoDate,
+  to: IsoDate,
+): { date: IsoDate; amount: number }[] {
+  const receipts: { date: IsoDate; amount: number }[] = [];
+  for (const item of items) {
+    const dates = item.kind === "one_off" ? [item.date] : occurrences(item, to);
+    for (const date of dates)
+      if (date > from && date <= to) receipts.push({ date, amount: item.amount });
+  }
+  return receipts;
+}
+
 /** Net income received with `from < date <= to`. */
 export function incomeBetween(items: readonly IncomeItem[], from: IsoDate, to: IsoDate): number {
   let total = 0;
-  for (const item of items) {
-    if (item.kind === "one_off") {
-      if (item.date > from && item.date <= to) total += item.amount;
-    } else {
-      total += occurrences(item, to).filter((d) => d > from).length * item.amount;
-    }
-  }
+  for (const receipt of incomeReceipts(items, from, to)) total += receipt.amount;
   return total;
 }

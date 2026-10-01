@@ -189,3 +189,32 @@ export const fireflyLinks = sqliteTable(
     uniqueIndex("firefly_links_account_idx").on(t.accountId),
   ],
 );
+
+/**
+ * A transfer between two of the user's own accounts, as recorded in Firefly III. It is the record of the
+ * movement (from, to, amount); the contributions it implies on declared accounts are stored separately, so
+ * the living cost never counts it twice. A side is null when its Firefly III account is not linked.
+ */
+export const transfers = sqliteTable(
+  "transfers",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    date: text("date").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    fromAccountId: text("from_account_id").references(() => accounts.id, { onDelete: "set null" }),
+    toAccountId: text("to_account_id").references(() => accounts.id, { onDelete: "set null" }),
+    /** Names of the two sides in Firefly III, shown when a side is not linked. */
+    fromName: text("from_name").notNull(),
+    toName: text("to_name").notNull(),
+    description: text("description").notNull(),
+    /** `firefly:<journal id>`. */
+    externalId: text("external_id").notNull(),
+  },
+  (t) => [
+    index("transfers_user_date_idx").on(t.userId, t.date),
+    uniqueIndex("transfers_user_external_idx").on(t.userId, t.externalId),
+  ],
+);
