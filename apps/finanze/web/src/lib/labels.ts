@@ -72,6 +72,14 @@ export function warningMessage(warning: Warning, accountName: (id: string) => st
   const period =
     warning.from && warning.to ? ` (${formatDate(warning.from)} → ${formatDate(warning.to)})` : "";
   switch (warning.code) {
+    case "firefly_balance_discrepancy":
+      return `Movimenti e saldi non coincidono per ${accountName(warning.accountId!)}: scarto ${formatEuro(warning.detail)}.`;
+    case "firefly_manual_income_ignored":
+      return "Entrate manuali escluse dal periodo: si usano gli accrediti effettivi Firefly.";
+    case "firefly_valuation_excluded":
+      return "Rivalutazione di investimento esclusa dalle spese (categoria Rendita Investimenti).";
+    case "firefly_partial_coverage":
+      return "Import Firefly incompleto per questo periodo: la spesa è ancora stimata dai saldi.";
     case "negative_spending":
       return `Spesa negativa${period}: ${formatEuro(warning.detail)}. Controlla saldi, entrate e contributi.`;
     case "spending_outlier":

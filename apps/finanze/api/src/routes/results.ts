@@ -41,6 +41,8 @@ const period = z.object({
   outsideTransfers: z
     .number()
     .describe("Net transfers towards own Firefly III accounts not linked to Lifebook"),
+  source: z.enum(["balances", "firefly"]),
+  estimatedSpending: z.number(),
   spending: z.number(),
   monthlySpending: z.number(),
   warnings: z.array(warning),

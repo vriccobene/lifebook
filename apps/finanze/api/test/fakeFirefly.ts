@@ -23,6 +23,7 @@ export interface FakeTransaction {
   destination: string;
   description?: string;
   currency?: string;
+  categoryName?: string;
 }
 
 const TYPE_NAMES: Record<FakeAccount["type"], (a: FakeAccount) => string> = {
@@ -133,8 +134,10 @@ export class FakeFirefly {
               {
                 transaction_journal_id: t.id,
                 type:
-                  this.typeName(t.source) === "Asset account" &&
-                  this.typeName(t.destination) === "Asset account"
+                  ["Asset account", "Mortgage", "Loan", "Debt"].includes(this.typeName(t.source)) &&
+                  ["Asset account", "Mortgage", "Loan", "Debt"].includes(
+                    this.typeName(t.destination),
+                  )
                     ? "transfer"
                     : this.typeName(t.destination) === "Expense account"
                       ? "withdrawal"
@@ -149,6 +152,7 @@ export class FakeFirefly {
                 destination_type: this.typeName(t.destination),
                 destination_name: this.accounts.find((a) => a.id === t.destination)!.name,
                 description: t.description ?? "",
+                category_name: t.categoryName ?? null,
               },
             ],
           },

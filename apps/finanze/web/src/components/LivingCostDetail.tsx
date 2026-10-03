@@ -20,10 +20,12 @@ export function LivingCostDetail({
       <details>
         <summary>Mostra il dettaglio per mese ({periods.length})</summary>
         <p className="muted small">
-          Spesa = entrate nette − variazione dei conti di spesa − trasferimenti verso gli altri
-          conti. Sui conti a contributi dichiarati, i rendimenti non entrano nella spesa: occorre
-          registrare tutti i versamenti e i prelievi. Sui conti con movimenti dedotti, il risultato
-          dipende dal tasso di interesse impostato.
+          Nei periodi interamente importati, la spesa è la somma delle uscite Firefly di tutti i
+          conti, inclusi i costi degli investimenti. Le entrate manuali non si sommano agli
+          accrediti importati. Negli altri periodi: spesa = entrate nette − variazione dei conti di
+          spesa − trasferimenti verso gli altri conti. Sui conti a contributi dichiarati, i
+          rendimenti non entrano nella spesa: occorre registrare tutti i versamenti e i prelievi.
+          Sui conti con movimenti dedotti, il risultato dipende dal tasso di interesse impostato.
         </p>
         <div className="scroll-x">
           <table>
@@ -43,6 +45,9 @@ export function LivingCostDetail({
                 <tr key={p.to}>
                   <td>
                     {formatMonth(p.to)}
+                    <div className="muted small">
+                      {p.source === "firefly" ? "Uscite Firefly" : "Stima dai saldi"}
+                    </div>
                     <div className="muted small">
                       {formatDate(p.from)} → {formatDate(p.to)}
                       {p.months > 1 ? ` · ${p.months} mesi` : ""}

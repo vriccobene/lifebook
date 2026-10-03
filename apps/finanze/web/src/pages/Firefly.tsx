@@ -314,6 +314,10 @@ function ImportCard() {
               : `Import completato: ${result.dates.length} fine mese dal ${formatDate(result.dates[0])} al ${formatDate(result.dates.at(-1))}.`}
           </Banner>
           <p>
+            <strong>Movimenti completi (entrate, uscite e aperture):</strong>{" "}
+            {result.movements && describeCounts(result.movements, true)}.
+          </p>
+          <p>
             <strong>Trasferimenti tra i tuoi conti:</strong>{" "}
             {describeCounts(result.transfers, true)}.
           </p>

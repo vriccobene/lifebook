@@ -1,3 +1,4 @@
+import { fireflyLedger, ledgerCovered } from "./fireflyLedger";
 import {
   contributionsBetween,
   incomeInto,
@@ -12,6 +13,8 @@ import {
 import {
   DAYS_PER_YEAR,
   addMonths,
+  addDays,
+  endOfMonth,
   daysBetween,
   monthIndex,
   monthOf,
@@ -30,6 +33,8 @@ export interface PeriodSpending {
   /** Calendar months covered: 1, or more when a month has no reading. */
   months: number;
   income: number;
+  source: "balances" | "firefly";
+  estimatedSpending: number;
   /** Sum of balance changes of the spending accounts. */
   spendingAccountsDelta: number;
   /** Net transfers towards non-spending accounts, including `outsideTransfers`. */
@@ -85,6 +90,19 @@ export function roundDates(ds: Dataset): IsoDate[] {
       const month = monthOf(reading.date);
       const current = cutoffByMonth.get(month);
       if (current === undefined || reading.date > current) cutoffByMonth.set(month, reading.date);
+    }
+  }
+  // A complete journal can measure the first imported calendar month without a prior balance.
+  const active = ds.accounts.filter((a) => isActive(a, ds.asOf));
+  for (const range of ds.fireflyCoverage) {
+    if (!range.from.endsWith("-01")) continue;
+    for (let start = range.from; start <= range.to; start = addMonths(start, 1)) {
+      const end = endOfMonth(monthOf(start));
+      if (end > ds.asOf || end > range.to) break;
+      const previous = addDays(start, -1);
+      if (!active.length || !active.every((a) => ledgerCovered(ds, a.id, previous, end))) continue;
+      cutoffByMonth.set(monthOf(end), end);
+      if (!cutoffByMonth.has(monthOf(previous))) cutoffByMonth.set(monthOf(previous), previous);
     }
   }
   return [...cutoffByMonth.values()].sort();
@@ -165,7 +183,11 @@ function computePeriod(ds: Dataset, from: IsoDate, to: IsoDate): PeriodSpending 
   const warnings: Warning[] = [];
   const days = daysBetween(from, to);
   const months = monthsBetween(from, to);
-  const income = incomeBetween(ds.incomeItems, from, to);
+  const manualIncome = incomeBetween(ds.incomeItems, from, to);
+  const ledger = fireflyLedger(ds, from, to, warnings);
+  const income = ledger?.income ?? manualIncome;
+  if (ledger && manualIncome !== 0)
+    warnings.push(warning("firefly_manual_income_ignored", { from, to, detail: manualIncome }));
 
   let spendingAccountsDelta = 0;
   const transfersByAccount: { accountId: string; amount: number }[] = [];
@@ -211,7 +233,8 @@ function computePeriod(ds: Dataset, from: IsoDate, to: IsoDate): PeriodSpending 
   }
 
   const transfers = sum(transfersByAccount.map((t) => t.amount)) + outsideTransfers;
-  const spending = income - spendingAccountsDelta - transfers;
+  const estimatedSpending = income - spendingAccountsDelta - transfers;
+  const spending = ledger?.spending ?? estimatedSpending;
   if (spending < 0) warnings.push(warning("negative_spending", { from, to, detail: spending }));
 
   return {
@@ -220,6 +243,8 @@ function computePeriod(ds: Dataset, from: IsoDate, to: IsoDate): PeriodSpending 
     days,
     months,
     income,
+    source: ledger ? "firefly" : "balances",
+    estimatedSpending,
     spendingAccountsDelta,
     transfers,
     transfersByAccount,
@@ -307,7 +332,8 @@ export function computeLivingCost(ds: Dataset): LivingCostResult {
   const hasSpendingAccount = ds.accounts.some(
     (a) => isActive(a, ds.asOf) && paramsAt(a, ds.asOf).isSpendingAccount,
   );
-  if (!hasSpendingAccount) warnings.push(warning("no_spending_account"));
+  if (!hasSpendingAccount && !periods.some((p) => p.source === "firefly"))
+    warnings.push(warning("no_spending_account"));
   warnings.push(...periods.flatMap((p) => p.warnings), ...staleWarnings(ds));
 
   const averages = {

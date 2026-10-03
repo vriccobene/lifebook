@@ -4,6 +4,8 @@ import { resolveSettings, type Settings, type SettingsEntry } from "./settings";
 import type { IsoDate } from "./dates";
 import { monthOf } from "./dates";
 import type {
+  FireflyMovement,
+  FireflyCoverage,
   Account,
   AccountParams,
   BalanceSnapshot,
@@ -20,6 +22,8 @@ export interface LifebookData {
   contributions: Contribution[];
   /** Transfers imported from Firefly III. */
   transfers?: Transfer[];
+  fireflyMovements?: FireflyMovement[];
+  fireflyCoverage?: FireflyCoverage[];
   incomeItems: IncomeItem[];
   essentialSpending: EssentialSpendingEntry[];
   settings: SettingsEntry[];
@@ -36,6 +40,8 @@ export interface Dataset {
   readings: Map<string, BalanceSnapshot[]>;
   contributions: Map<string, Contribution[]>;
   transfers: Transfer[];
+  fireflyMovements: FireflyMovement[];
+  fireflyCoverage: FireflyCoverage[];
   incomeItems: IncomeItem[];
   essentialSpending: EssentialSpendingEntry[];
 }
@@ -70,6 +76,8 @@ export function prepareDataset(data: LifebookData, asOf: IsoDate): Dataset {
     readings,
     contributions,
     transfers: (data.transfers ?? []).filter((t) => t.date <= asOf),
+    fireflyMovements: (data.fireflyMovements ?? []).filter((m) => m.date <= asOf),
+    fireflyCoverage: data.fireflyCoverage ?? [],
     incomeItems: data.incomeItems,
     essentialSpending: data.essentialSpending.filter((entry) =>
       entry.mode === "month_amount" ? entry.month <= asOfMonth : entry.validFrom <= asOf,

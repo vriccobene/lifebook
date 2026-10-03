@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { errorMessage } from "../api/client";
 import { useGet, useWrite } from "../api/hooks";
-import type { IncomeItem } from "../api/types";
+import type { FireflyMovement, IncomeItem } from "../api/types";
 import { Banner, Card, EmptyState, Field, Loading, QueryError } from "../components/ui";
 import { todayIso } from "../lib/dates";
 import { formatDate, formatEuro, parseDecimal, toInputNumber } from "../lib/format";
@@ -48,6 +48,8 @@ const toForm = (item: IncomeItem): Form =>
 
 export function Income() {
   const items = useGet<IncomeItem[]>("/income-items");
+  const journal = useGet<FireflyMovement[]>("/firefly/movements");
+  const deposits = journal.data?.filter((m) => m.type === "deposit") ?? [];
   const create = useWrite<Record<string, unknown>>("POST", () => "/income-items");
   const replace = useWrite<{ id: string; body: Record<string, unknown> }>(
     "PUT",
@@ -183,14 +185,49 @@ export function Income() {
           </div>
         </form>
         <p className="muted small">
-          Inserisci anche affitti e dividendi accreditati su un conto di spesa: altrimenti abbassano
-          il costo della vita calcolato.
+          Nei periodi coperti interamente da Firefly si usano gli accrediti effettivi importati. Le
+          voci manuali restano disponibili per gli altri periodi e non vengono sommate agli
+          accrediti Firefly.
         </p>
+      </Card>
+      <Card title="Accrediti importati da Firefly">
+        <p className="muted small">
+          Importi effettivi, aggiornati al prossimo import. Gli accrediti sui conti di investimento
+          possono rappresentare rendimenti e non reddito spendibile.
+        </p>
+        {journal.isPending ? (
+          <Loading />
+        ) : journal.error ? (
+          <QueryError error={journal.error} />
+        ) : deposits.length === 0 ? (
+          <EmptyState>Nessun accredito Firefly importato.</EmptyState>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Conto</th>
+                <th>Descrizione</th>
+                <th className="num">Importo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {deposits.map((m) => (
+                <tr key={m.id}>
+                  <td>{formatDate(m.date)}</td>
+                  <td>{m.toName}</td>
+                  <td>{m.description}</td>
+                  <td className="num">{formatEuro(m.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </Card>
       <Card>
         {items.data.length === 0 ? (
           <EmptyState>
-            Nessuna entrata. Senza entrate il costo della vita non può essere dedotto.
+            Nessuna entrata manuale. Gli accrediti Firefly importati sono mostrati separatamente.
           </EmptyState>
         ) : (
           <table>

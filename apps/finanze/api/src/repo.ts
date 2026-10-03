@@ -174,6 +174,22 @@ export function loadLifebookData(db: Db, userId: string): LifebookData {
       fromAccountId: row.fromAccountId,
       toAccountId: row.toAccountId,
     }));
+  const fireflyMovements = db
+    .select()
+    .from(t.fireflyMovements)
+    .where(eq(t.fireflyMovements.userId, userId))
+    .all()
+    .map((m) => ({
+      date: m.date,
+      type: m.type,
+      amount: centsToEuros(m.amountCents),
+      fromAccountId: m.fromAccountId,
+      toAccountId: m.toAccountId,
+      categoryName: m.categoryName,
+    }));
+  const fireflyCoverage = ids.length
+    ? db.select().from(t.fireflyCoverage).where(inArray(t.fireflyCoverage.accountId, ids)).all()
+    : [];
   const incomeItems: IncomeItem[] = db
     .select()
     .from(t.incomeItems)
@@ -201,6 +217,8 @@ export function loadLifebookData(db: Db, userId: string): LifebookData {
     snapshots,
     contributions,
     transfers,
+    fireflyMovements,
+    fireflyCoverage,
     incomeItems,
     essentialSpending,
     settings,

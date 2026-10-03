@@ -18,6 +18,8 @@ const period = (to: string, income: number, spending: number, months = 1) => ({
   to,
   days: 30,
   months,
+  source: "balances" as const,
+  estimatedSpending: spending,
   income,
   spendingAccountsDelta: 0,
   transfers: 0,

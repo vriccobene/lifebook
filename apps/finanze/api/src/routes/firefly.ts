@@ -17,6 +17,7 @@ import { MAX_IMPORT_MONTHS, importedContributionId, monthEnds, planImport } from
 import { centsToEuros } from "../money";
 import { loadLifebookData, requireAccount } from "../repo";
 import { dateSchema, errorSchema, okSchema } from "../schemas";
+import { planMovements } from "../firefly/movementsPlan";
 import { timestamp, today, type RouteContext } from "./context";
 
 export interface FireflyOptions {
@@ -76,6 +77,7 @@ const importResultSchema = z.object({
   from: dateSchema,
   to: dateSchema,
   dates: z.array(dateSchema),
+  movements: countsSchema,
   transfers: countsSchema.describe("Transfers between your accounts, over the whole import"),
   accounts: z.array(
     z.object({
@@ -327,13 +329,51 @@ export async function fireflyRoutes(app: FastifyInstance, ctx: RouteContext) {
     },
   );
 
+  r.get(
+    "/firefly/movements",
+    {
+      schema: {
+        tags,
+        summary: "Imported Firefly journal, read only and isolated by user",
+        response: {
+          200: z.array(
+            z.object({
+              id: z.string(),
+              externalId: z.string(),
+              date: dateSchema,
+              type: z.string(),
+              amount: z.number(),
+              fromAccountId: z.string().nullable(),
+              toAccountId: z.string().nullable(),
+              fromName: z.string(),
+              toName: z.string(),
+              description: z.string(),
+              categoryName: z.string().nullable(),
+            }),
+          ),
+        },
+      },
+    },
+    async (request) =>
+      db
+        .select()
+        .from(t.fireflyMovements)
+        .where(eq(t.fireflyMovements.userId, request.userId))
+        .orderBy(desc(t.fireflyMovements.date))
+        .all()
+        .map(({ amountCents, userId: _userId, ...m }) => ({
+          ...m,
+          amount: centsToEuros(amountCents),
+        })),
+  );
+
   r.post(
     "/firefly/import",
     {
       schema: {
         tags,
         summary:
-          "Import month-end balances and transfers of the linked accounts. With dryRun nothing is written.",
+          "Import balances and all journals (income, expenses, transfers and opening balances) of linked accounts. With dryRun nothing is written.",
         body: z.object({
           from: dateSchema.optional().describe("Default: twelve months before `to`"),
           to: dateSchema.optional().describe("Default: the end of the last complete month"),
@@ -419,7 +459,7 @@ export async function fireflyRoutes(app: FastifyInstance, ctx: RouteContext) {
         .all()
         .filter((tr) => (tr.date >= from && tr.date <= to) || fetchedIds.has(tr.externalId));
 
-      const plan = planImport({
+      const input = {
         from,
         to,
         accounts,
@@ -430,10 +470,44 @@ export async function fireflyRoutes(app: FastifyInstance, ctx: RouteContext) {
         contributions,
         transfers,
         accountsWithEarlierHistory: new Set(earlier.map((e) => e.accountId)),
-      });
+      };
+      const plan = planImport(input);
+      const movements = planMovements(
+        input,
+        db
+          .select()
+          .from(t.fireflyMovements)
+          .where(eq(t.fireflyMovements.userId, request.userId))
+          .all(),
+      );
 
       if (!request.body.dryRun) {
         db.transaction((tx) => {
+          for (const entry of movements.create)
+            tx.insert(t.fireflyMovements)
+              .values({ id: randomUUID(), userId: request.userId, ...entry })
+              .run();
+          for (const { id, ...entry } of movements.update)
+            tx.update(t.fireflyMovements).set(entry).where(eq(t.fireflyMovements.id, id)).run();
+          if (movements.remove.length)
+            tx.delete(t.fireflyMovements)
+              .where(inArray(t.fireflyMovements.id, movements.remove))
+              .run();
+          // Invalidate overlapping coverage when this import cannot account for every currency.
+          const covered = new Set(movements.coverage.map((c) => c.accountId));
+          for (const accountId of accountIds)
+            if (!covered.has(accountId))
+              tx.delete(t.fireflyCoverage)
+                .where(
+                  and(
+                    eq(t.fireflyCoverage.accountId, accountId),
+                    lte(t.fireflyCoverage.from, to),
+                    gte(t.fireflyCoverage.to, from),
+                  ),
+                )
+                .run();
+          for (const coverage of movements.coverage)
+            tx.insert(t.fireflyCoverage).values(coverage).onConflictDoNothing().run();
           for (const s of plan.createSnapshots)
             tx.insert(t.snapshots)
               .values({ id: randomUUID(), ...s, source: "firefly" })
@@ -473,6 +547,7 @@ export async function fireflyRoutes(app: FastifyInstance, ctx: RouteContext) {
         from,
         to,
         dates: plan.dates,
+        movements: movements.counts,
         transfers: plan.transfers,
         accounts: plan.accounts,
         warnings: plan.warnings,

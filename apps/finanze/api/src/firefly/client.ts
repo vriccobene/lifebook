@@ -42,6 +42,7 @@ export interface FireflySplit {
   destinationType: string;
   destinationName: string;
   description: string;
+  categoryName?: string | null;
 }
 
 interface Page<T> {
@@ -80,6 +81,7 @@ interface TransactionResource {
       destination_type: string;
       destination_name?: string | null;
       description?: string;
+      category_name?: string | null;
     }[];
   };
 }
@@ -239,6 +241,7 @@ export class FireflyClient {
         destinationType: s.destination_type,
         destinationName: s.destination_name ?? "",
         description: s.description ?? "",
+        categoryName: s.category_name ?? null,
       })),
     );
   }

@@ -87,6 +87,16 @@ export interface Transfer {
   toAccountId: string | null;
 }
 
+export interface FireflyMovement extends Transfer {
+  type: string;
+  categoryName: string | null;
+}
+export interface FireflyCoverage {
+  accountId: string;
+  from: IsoDate;
+  to: IsoDate;
+}
+
 export type Periodicity = "monthly" | "quarterly" | "yearly";
 
 export type IncomeItem = { id: string; name: string; amount: number } & (
@@ -104,6 +114,10 @@ export type EssentialSpendingEntry =
   | { mode: "month_amount"; value: number; month: IsoMonth };
 
 export type WarningCode =
+  | "firefly_balance_discrepancy"
+  | "firefly_manual_income_ignored"
+  | "firefly_valuation_excluded"
+  | "firefly_partial_coverage"
   | "negative_spending"
   | "spending_outlier"
   | "spending_account_missing_reading"

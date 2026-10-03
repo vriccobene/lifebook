@@ -654,3 +654,72 @@ describe("Firefly III and multiple users (regression)", () => {
     expect((await anna.api.get(`/transfers?accountId=${own}`)).status).toBe(404);
   });
 });
+
+describe("complete Firefly journal import", () => {
+  it("previews without writing, imports receipts and expenses, and is idempotent", async () => {
+    await connectAndLink(api);
+    const preview = await api.post("/firefly/import", { ...RANGE, dryRun: true });
+    expect(preview.status).toBe(200);
+    expect(preview.body.movements.created).toBe(7);
+    expect((await api.get("/firefly/movements")).body).toEqual([]);
+    expect(t.db.select().from(schema.fireflyCoverage).all()).toEqual([]);
+    const imported = await api.post("/firefly/import", RANGE);
+    expect(imported.body.movements.created).toBe(7);
+    const journal = (await api.get("/firefly/movements")).body;
+    expect(journal.filter((m: { type: string }) => m.type === "deposit")).toHaveLength(2);
+    expect(journal.filter((m: { type: string }) => m.type === "withdrawal")).toHaveLength(1);
+    expect(journal.filter((m: { type: string }) => m.type === "transfer")).toHaveLength(4);
+    const again = await api.post("/firefly/import", RANGE);
+    expect(again.body.movements).toMatchObject({
+      created: 0,
+      updated: 0,
+      deleted: 0,
+      unchanged: 7,
+    });
+    expect(t.db.select().from(schema.fireflyCoverage).all()).toHaveLength(4);
+    const living = (await api.get("/results/living-cost?asOf=2026-06-30")).body.livingCost;
+    expect(living.periods.find((p: { to: string }) => p.to === "2026-01-31")).toMatchObject({
+      source: "firefly",
+      income: 3000,
+      spending: 1200,
+    });
+    expect(living.periods.find((p: { to: string }) => p.to === "2026-06-30")).toMatchObject({
+      source: "firefly",
+      income: 0,
+      spending: 0,
+    });
+  });
+  it("follows receipt and expense edits and deletions without touching another user's journal", async () => {
+    await connectAndLink(api);
+    const anna = await addUser(t.app, api, "journal-anna");
+    await connectAndLink(anna.api);
+    await api.post("/firefly/import", RANGE);
+    await anna.api.post("/firefly/import", RANGE);
+    const before = (await anna.api.get("/firefly/movements")).body;
+    ff.transactions.find((m) => m.id === "101")!.amount = 3500;
+    ff.transactions.find((m) => m.id === "101")!.date = "2026-02-01";
+    ff.transactions = ff.transactions.filter((m) => m.id !== "102");
+    const updated = await api.post("/firefly/import", RANGE);
+    expect(updated.body.movements).toMatchObject({ created: 0, updated: 1, deleted: 1 });
+    expect(
+      (await api.get("/firefly/movements")).body.find(
+        (m: { externalId: string }) => m.externalId === "firefly:101",
+      ),
+    ).toMatchObject({ amount: 3500, date: "2026-02-01" });
+    expect((await anna.api.get("/firefly/movements")).body).toEqual(before);
+  });
+  it("retains previously imported movements in unsupported currencies and invalidates coverage", async () => {
+    await connectAndLink(api);
+    await api.post("/firefly/import", RANGE);
+    ff.transactions.find((m) => m.id === "101")!.currency = "USD";
+    const imported = await api.post("/firefly/import", RANGE);
+    expect(imported.body.movements.deleted).toBe(0);
+    expect(
+      (await api.get("/firefly/movements")).body.some(
+        (m: { externalId: string }) => m.externalId === "firefly:101",
+      ),
+    ).toBe(true);
+    const living = (await api.get("/results/living-cost?asOf=2026-06-30")).body.livingCost;
+    expect(living.periods.every((p: { source: string }) => p.source === "balances")).toBe(true);
+  });
+});

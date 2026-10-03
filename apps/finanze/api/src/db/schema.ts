@@ -218,3 +218,38 @@ export const transfers = sqliteTable(
     uniqueIndex("transfers_user_external_idx").on(t.userId, t.externalId),
   ],
 );
+
+/** Full Firefly journal. Transfers also retain their existing contribution representation. */
+export const fireflyMovements = sqliteTable(
+  "firefly_movements",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    externalId: text("external_id").notNull(),
+    date: text("date").notNull(),
+    type: text("type").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    fromAccountId: text("from_account_id").references(() => accounts.id, { onDelete: "set null" }),
+    toAccountId: text("to_account_id").references(() => accounts.id, { onDelete: "set null" }),
+    fromName: text("from_name").notNull(),
+    toName: text("to_name").notNull(),
+    description: text("description").notNull(),
+    categoryName: text("category_name"),
+  },
+  (t) => [uniqueIndex("firefly_movements_user_external_idx").on(t.userId, t.externalId)],
+);
+
+/** Successful EUR imports, including intervals without any transactions. */
+export const fireflyCoverage = sqliteTable(
+  "firefly_coverage",
+  {
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    from: text("from_date").notNull(),
+    to: text("to_date").notNull(),
+  },
+  (t) => [uniqueIndex("firefly_coverage_account_range_idx").on(t.accountId, t.from, t.to)],
+);

@@ -207,6 +207,7 @@ export interface FireflyImportResult {
   from: string;
   to: string;
   dates: string[];
+  movements: ImportCounts;
   transfers: ImportCounts;
   accounts: {
     accountId: string;
@@ -217,4 +218,18 @@ export interface FireflyImportResult {
     contributions: ImportCounts;
   }[];
   warnings: FireflyImportWarning[];
+}
+
+export interface FireflyMovement {
+  id: string;
+  externalId: string;
+  date: string;
+  type: string;
+  amount: number;
+  fromAccountId: string | null;
+  toAccountId: string | null;
+  fromName: string;
+  toName: string;
+  description: string;
+  categoryName: string | null;
 }
