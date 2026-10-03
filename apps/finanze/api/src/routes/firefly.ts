@@ -14,7 +14,7 @@ import {
   type FireflyAccount,
 } from "../firefly/client";
 import { MAX_IMPORT_MONTHS, importedContributionId, monthEnds, planImport } from "../firefly/plan";
-import { centsToEuros } from "../money";
+import { eurosToCents, centsToEuros } from "../money";
 import { loadLifebookData, requireAccount } from "../repo";
 import { dateSchema, errorSchema, okSchema } from "../schemas";
 import { planMovements } from "../firefly/movementsPlan";
@@ -329,12 +329,71 @@ export async function fireflyRoutes(app: FastifyInstance, ctx: RouteContext) {
     },
   );
 
+  const annotationSchema = z.object({
+    tags: z.array(z.string().trim().min(1).max(60)).max(30),
+    included: z.boolean(),
+    spendingClass: z.enum(["unclassified", "essential", "discretionary"]),
+    isYield: z.boolean(),
+    incomeKind: z.enum(["salary", "yield", "other"]).nullable().default(null),
+    grossAmount: z.number().finite().nonnegative().max(1e10).nullable(),
+  });
+  r.put(
+    "/firefly/movements/:id/annotation",
+    {
+      schema: {
+        tags,
+        params: z.object({ id: z.string() }),
+        body: annotationSchema,
+        response: { 200: okSchema, 400: errorSchema, 404: errorSchema },
+      },
+    },
+    async (request) => {
+      const movement = db
+        .select()
+        .from(t.fireflyMovements)
+        .where(
+          and(
+            eq(t.fireflyMovements.id, request.params.id),
+            eq(t.fireflyMovements.userId, request.userId),
+          ),
+        )
+        .get();
+      if (!movement) throw notFound("Movement");
+      const { grossAmount, ...body } = request.body;
+      if (
+        grossAmount !== null &&
+        (movement.type !== "deposit" || eurosToCents(grossAmount) < movement.amountCents)
+      )
+        throw badRequest(
+          "Il lordo deve essere almeno pari all’entrata netta ed è disponibile solo per le entrate.",
+        );
+      if ((body.isYield || body.incomeKind !== null) && movement.type !== "deposit")
+        throw badRequest("Solo un’entrata può essere una rendita.");
+      const row = {
+        ...body,
+        isYield: body.incomeKind === null ? body.isYield : body.incomeKind === "yield",
+        tags: JSON.stringify([...new Set(body.tags)]),
+        userId: request.userId,
+        externalId: movement.externalId,
+        grossCents: grossAmount === null ? null : eurosToCents(grossAmount),
+      };
+      db.insert(t.movementAnnotations)
+        .values(row)
+        .onConflictDoUpdate({
+          target: [t.movementAnnotations.userId, t.movementAnnotations.externalId],
+          set: row,
+        })
+        .run();
+      return { ok: true as const };
+    },
+  );
+
   r.get(
     "/firefly/movements",
     {
       schema: {
         tags,
-        summary: "Imported Firefly journal, read only and isolated by user",
+        summary: "Imported Firefly journal with local annotations, isolated by user",
         response: {
           200: z.array(
             z.object({
@@ -349,22 +408,43 @@ export async function fireflyRoutes(app: FastifyInstance, ctx: RouteContext) {
               toName: z.string(),
               description: z.string(),
               categoryName: z.string().nullable(),
+              annotation: annotationSchema,
             }),
           ),
         },
       },
     },
-    async (request) =>
-      db
+    async (request) => {
+      const annotations = new Map(
+        db
+          .select()
+          .from(t.movementAnnotations)
+          .where(eq(t.movementAnnotations.userId, request.userId))
+          .all()
+          .map((a) => [a.externalId, a]),
+      );
+      return db
         .select()
         .from(t.fireflyMovements)
         .where(eq(t.fireflyMovements.userId, request.userId))
         .orderBy(desc(t.fireflyMovements.date))
         .all()
-        .map(({ amountCents, userId: _userId, ...m }) => ({
-          ...m,
-          amount: centsToEuros(amountCents),
-        })),
+        .map(({ amountCents, userId: _userId, ...m }) => {
+          const a = annotations.get(m.externalId);
+          return {
+            ...m,
+            amount: centsToEuros(amountCents),
+            annotation: {
+              tags: a ? (JSON.parse(a.tags) as string[]) : [],
+              included: a?.included ?? true,
+              spendingClass: a?.spendingClass ?? ("unclassified" as const),
+              isYield: a?.isYield ?? false,
+              incomeKind: a?.incomeKind ?? null,
+              grossAmount: a?.grossCents == null ? null : centsToEuros(a.grossCents),
+            },
+          };
+        });
+    },
   );
 
   r.post(

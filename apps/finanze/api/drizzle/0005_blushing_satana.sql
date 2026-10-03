@@ -1,0 +1,1 @@
+ALTER TABLE `movement_annotations` ADD `income_kind` text;

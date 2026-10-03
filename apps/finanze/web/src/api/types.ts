@@ -221,6 +221,7 @@ export interface FireflyImportResult {
 }
 
 export interface FireflyMovement {
+  annotation?: MovementAnnotation;
   id: string;
   externalId: string;
   date: string;
@@ -232,4 +233,15 @@ export interface FireflyMovement {
   toName: string;
   description: string;
   categoryName: string | null;
+}
+
+export type IncomeKind = "salary" | "yield" | "other";
+
+export interface MovementAnnotation {
+  incomeKind?: IncomeKind | null;
+  tags: string[];
+  included: boolean;
+  spendingClass: "unclassified" | "essential" | "discretionary";
+  isYield: boolean;
+  grossAmount: number | null;
 }

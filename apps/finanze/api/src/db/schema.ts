@@ -253,3 +253,23 @@ export const fireflyCoverage = sqliteTable(
   },
   (t) => [uniqueIndex("firefly_coverage_account_range_idx").on(t.accountId, t.from, t.to)],
 );
+
+/** Local annotations keyed by the stable Firefly journal ID, preserved across imports. */
+export const movementAnnotations = sqliteTable(
+  "movement_annotations",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    externalId: text("external_id").notNull(),
+    tags: text("tags").notNull().default("[]"),
+    included: integer("included", { mode: "boolean" }).notNull().default(true),
+    spendingClass: text("spending_class", { enum: ["unclassified", "essential", "discretionary"] })
+      .notNull()
+      .default("unclassified"),
+    isYield: integer("is_yield", { mode: "boolean" }).notNull().default(false),
+    grossCents: integer("gross_cents"),
+    incomeKind: text("income_kind", { enum: ["salary", "yield", "other"] }),
+  },
+  (t) => [uniqueIndex("movement_annotations_user_external_idx").on(t.userId, t.externalId)],
+);

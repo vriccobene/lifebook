@@ -3,6 +3,7 @@ import { useState, type ReactNode } from "react";
 import { AuthProvider, useAuth } from "./api/auth";
 import { useGet } from "./api/hooks";
 import type { Me } from "./api/types";
+import { Analytics } from "./pages/Analytics";
 import { Accounts } from "./pages/Accounts";
 import { Dashboard } from "./pages/Dashboard";
 import { Essential } from "./pages/Essential";
@@ -20,6 +21,7 @@ export const APP_TITLE = "Lifebook Finanze";
 
 export const ROUTES: { path: string; label: string; element: () => ReactNode }[] = [
   { path: "/", label: "Cruscotto", element: () => <Dashboard /> },
+  { path: "/analytics", label: "Analytics", element: () => <Analytics /> },
   { path: "/giro", label: "Giro mensile", element: () => <Giro /> },
   { path: "/trasferimenti", label: "Trasferimenti", element: () => <Transfers /> },
   { path: "/conti", label: "Conti", element: () => <Accounts /> },

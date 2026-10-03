@@ -161,3 +161,69 @@ I database SQLite, i file `.env`, i backup e i CSV sono ignorati da git. Nessun 
 ## Hook pre-commit
 
 `pnpm install` attiva `.githooks/pre-commit`, che esegue `pnpm check` prima di ogni commit. Se qualcosa è rosso il commit viene bloccato.
+
+### Analytics dei movimenti Firefly
+
+La sezione **Analytics** (`#/analytics`) analizza il giornale EUR importato da Firefly:
+filtri combinabili per date, tipo, categoria, conto/controparte, tag, classificazione,
+rendita e inclusione, con esclusioni multiple di categorie e conti/controparti;
+andamento mensile, ripartizione delle spese, raggruppamenti
+per categoria, mese, tag o controparte ed esportazione CSV delle transazioni filtrate.
+I trasferimenti sono mostrati separatamente e non contribuiscono al saldo entrate
+meno spese; i saldi iniziali non sono entrate. Le transazioni escluse restano
+consultabili ma non contribuiscono ai riepiloghi.
+
+Da **Dettagli** si possono assegnare tag, classificare una spesa come essenziale o
+discrezionale e identificare una rendita. Le entrate nei conti titoli collegati
+sono lorde; il netto stimato applica l’aliquota del conto alla data del movimento.
+Per le altre rendite su conti collegati vale la stessa regola, con aliquota 0%
+quando il dato è già tassato. Per entrate senza conto collegato il lordo resta
+inseribile manualmente; i riepiloghi ne segnalano gli importi mancanti.
+Le annotazioni sono personali, salvate nel database e associate all’identificativo
+stabile del journal Firefly; sopravvivono alle successive importazioni. Non modificano
+le transazioni in Firefly né i calcoli della pianificazione finanziaria.
+Una transazione con più tag appartiene a più gruppi: quei gruppi non sono additivi.
+I risultati descrivono i movimenti importati, non periodi non ancora importati.
+
+Il riepilogo dei flussi Analytics distingue **Stipendio netto** e **Altre entrate
+incassate**, oltre a entrate totali, spese e saldo. I rendimenti maturati sono
+mostrati nel riepilogo dedicato, separato dagli incassi. Le categorie Firefly dedicate allo stipendio
+(`Stipendio`, `Stipendi`, `Salario`, `Salari`, `Salary`, `Salaries`, `Wages`) vengono
+riconosciute automaticamente. Da **Dettagli → Tipo di entrata** puoi scegliere
+Stipendio, Rendita o Altra entrata: la scelta esplicita prevale sulla categoria ed
+è conservata alle reimportazioni. In assenza di una scelta esplicita, le entrate
+non riconosciute come stipendio confluiscono nelle rendite: non occorre annotarle
+una per una. Per tenere separato un rimborso o un’altra entrata seleziona
+esplicitamente «Altra entrata»; rimane comunque nel totale delle entrate.
+
+Il box principale delle rendite mostra anche il lordo. Se manca per tutte le
+transazioni è indicato come «Non disponibile»; se è noto solo in parte, il totale
+è etichettato «Lordo noto (parziale)» con il numero di importi mancanti.
+Per conti titoli e rendite su conti collegati il lordo è noto dall’importo Firefly
+e il netto viene stimato applicando la tassazione configurata.
+
+Analytics mostra **Rendimenti dei conti, anche senza vendere** separatamente dai
+flussi incassati. Riutilizza il calcolo dei rendimenti da letture di saldo e
+contributi: i trasferimenti di capitale non sono rendite. Mostra lordo, netto
+stimato e imposte per conto e in totale, per i periodi di lettura chiusi
+nell’intervallo; le date effettivamente misurate sono visibili nella tabella.
+Questa sezione segue i filtri per date e conti; categorie, tag, tipo di movimento
+e annotazioni di inclusione riguardano invece il giornale degli incassi.
+
+Da **Tassazione** si salva un’aliquota del conto con una data di validità. Usa 0%
+se il saldo/rendimento importato è già tassato: la base mostrata come lordo
+coincide allora con il netto stimato, senza ricostruire il lordo fiscale originario.
+La stima applica le aliquote dei conti ai guadagni positivi dei periodi; le perdite
+non producono un credito fiscale. Non ricostruisce il costo fiscale dei singoli
+titoli o compensazioni: è una stima del rendimento del periodo, non un preventivo
+fiscale di liquidazione dell’intero patrimonio. Per maggior dettaglio si possono
+creare conti distinti per ogni investimento.
+
+Le entrate importate nei conti titoli collegati (titoli, investimenti esterni e
+fondi pensione) sono trattate come **lorde**. Il netto stimato usa l’aliquota del
+conto valida alla data della transazione: `lordo − imposte stimate`. La stessa
+regola vale per le altre rendite su conti collegati; con aliquota 0% lordo e netto
+coincidono. Riepiloghi, grafici, raggruppamenti, dettagli e CSV usano gli stessi
+valori. L’importo Firefly originale resta visibile; i trasferimenti non sono
+entrate tassabili. Per entrate senza conto collegato rimane disponibile il lordo
+manuale: nessuna aliquota viene dedotta dal nome del conto.

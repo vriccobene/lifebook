@@ -78,7 +78,11 @@ function ParamsFields({
       {type !== "liability" && percent("expectedReturn", "Rendimento atteso reale")}
       {type !== "liability" &&
         percent("passiveYield", "Rendita passiva annua", "Interessi, dividendi, affitto netto")}
-      {percent("taxRate", "Tassazione", "Es. 26, 12,5, 21")}
+      {percent(
+        "taxRate",
+        "Tassazione",
+        "Aliquota per il netto stimato. Usa 0 se gli importi sono già tassati.",
+      )}
       {(type === "deposit" || type === "liability" || type === "checking") &&
         percent("interestRate", "Tasso dichiarato")}
       {type === "real_estate" && (
