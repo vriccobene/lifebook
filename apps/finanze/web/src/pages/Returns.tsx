@@ -1,3 +1,4 @@
+import { PageHeading } from "../components/ui";
 import { useState } from "react";
 import { useGet } from "../api/hooks";
 import { accountNamer, useAccounts } from "../api/queries";
@@ -53,7 +54,9 @@ export function Returns() {
   return (
     <>
       <div className="toolbar">
-        <h1 style={{ margin: 0 }}>Rendimenti</h1>
+        <PageHeading title="Rendimenti" eyebrow="I TUOI INVESTIMENTI">
+          Confronta la crescita dei conti, al lordo e al netto delle imposte stimate.
+        </PageHeading>
         {control}
       </div>
       {summaries.length === 0 ? (

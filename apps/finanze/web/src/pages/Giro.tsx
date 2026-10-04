@@ -1,3 +1,4 @@
+import { PageHeading } from "../components/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { apiFetch, errorMessage } from "../api/client";
@@ -65,7 +66,9 @@ export function Giro() {
   return (
     <>
       <div className="toolbar">
-        <h1 style={{ margin: 0 }}>Giro mensile</h1>
+        <PageHeading title="Giro mensile" eyebrow="LA TUA ABITUDINE MENSILE">
+          Aggiorna i saldi e registra i contributi. Il quadro si ricalcola da qui.
+        </PageHeading>
         <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <span>Data di riferimento</span>
           <input

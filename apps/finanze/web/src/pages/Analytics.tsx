@@ -20,6 +20,13 @@ import {
 import { endOfMonth, todayIso } from "../lib/dates";
 import { formatDate, formatEuro, formatMonth, formatPercent } from "../lib/format";
 import "./analytics.css";
+import {
+  analyticsHref,
+  defaultAnalyticsFilters,
+  filterMovements,
+  readAnalyticsFilters,
+  validReportRange,
+} from "../lib/analyticsFilters";
 
 const money = (v: number) => formatEuro(v, 2);
 const grossValue = (amount: number, missing: number) =>
@@ -36,22 +43,29 @@ export function Analytics() {
   const query = useGet<FireflyMovement[]>("/firefly/movements");
   const accountQuery = useAccounts();
   const now = todayIso();
-  const [from, setFrom] = useState(now.slice(0, 7) + "-01");
-  const [to, setTo] = useState(now);
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("");
-  const [tag, setTag] = useState("");
-  const [account, setAccount] = useState("");
-  const [excludedCategories, setExcludedCategories] = useState<string[]>([]);
-  const [excludedAccounts, setExcludedAccounts] = useState<string[]>([]);
-  const [type, setType] = useState("");
-  const [classification, setClassification] = useState("");
-  const [inclusion, setInclusion] = useState("all");
-  const [yieldOnly, setYieldOnly] = useState(false);
+  const [initialFilters] = useState(() => readAnalyticsFilters());
+  const initial = initialFilters ?? defaultAnalyticsFilters(now.slice(0, 7) + "-01", now);
+  const [from, setFrom] = useState(initial.from);
+  const [to, setTo] = useState(initial.to);
+  const [search, setSearch] = useState(initial.search);
+  const [category, setCategory] = useState(initial.category);
+  const [tag, setTag] = useState(initial.tag);
+  const [account, setAccount] = useState(initial.account);
+  const [excludedCategories, setExcludedCategories] = useState<string[]>(
+    initial.excludedCategories,
+  );
+  const [excludedAccounts, setExcludedAccounts] = useState<string[]>(initial.excludedAccounts);
+  const [includedCategories, setIncludedCategories] = useState<string[]>(
+    initial.includedCategories,
+  );
+  const [type, setType] = useState(initial.type);
+  const [classification, setClassification] = useState(initial.classification);
+  const [inclusion, setInclusion] = useState(initial.inclusion);
+  const [yieldOnly, setYieldOnly] = useState(initial.yieldOnly);
   const [groupBy, setGroupBy] = useState<GroupBy>("category");
   const [editing, setEditing] = useState<FireflyMovement | null>(null);
   const [page, setPage] = useState(0);
-  const initializedRange = useRef(false);
+  const initializedRange = useRef(Boolean(initialFilters));
   useEffect(() => {
     if (!query.data || initializedRange.current) return;
     initializedRange.current = true;
@@ -74,6 +88,7 @@ export function Analytics() {
       classification,
       inclusion,
       yieldOnly,
+      includedCategories,
       excludedCategories,
       excludedAccounts,
     ],
@@ -85,28 +100,22 @@ export function Analytics() {
   const categories = [...new Set(movements.map(categoryOf))].sort();
   const tags = [...new Set(movements.flatMap((m) => annotationOf(m).tags))].sort();
   const accounts = [...new Set(movements.flatMap((m) => [m.fromName, m.toName]))].sort();
-  const rows = movements.filter((m) => {
-    const a = annotationOf(m);
-    return (
-      m.date >= from &&
-      m.date <= to &&
-      (!type || m.type === type) &&
-      (!category || categoryOf(m) === category) &&
-      !excludedCategories.includes(categoryOf(m)) &&
-      !excludedAccounts.includes(m.fromName) &&
-      !excludedAccounts.includes(m.toName) &&
-      (!tag || a.tags.includes(tag)) &&
-      (!account || m.fromName === account || m.toName === account) &&
-      (!classification || (m.type === "withdrawal" && a.spendingClass === classification)) &&
-      (!yieldOnly || (m.type === "deposit" && incomeKindOf(m) === "yield")) &&
-      (inclusion === "all" || a.included === (inclusion === "included")) &&
-      (!search ||
-        [m.description, m.fromName, m.toName, categoryOf(m), ...a.tags]
-          .join(" ")
-          .toLocaleLowerCase()
-          .includes(search.toLocaleLowerCase()))
-    );
-  });
+  const filters = {
+    from,
+    to,
+    search,
+    category,
+    tag,
+    account,
+    includedCategories,
+    excludedCategories,
+    excludedAccounts,
+    type,
+    classification,
+    inclusion,
+    yieldOnly,
+  };
+  const rows = filterMovements(movements, filters);
   const totals = summarize(rows, accountQuery.data);
   const groups = groupMovements(rows, groupBy, accountQuery.data);
   const months = groupMovements(rows, "month", accountQuery.data).map((g) => ({
@@ -141,9 +150,21 @@ export function Analytics() {
           <h1>Analytics</h1>
           <p>Esplora i flussi. Dai un significato a ogni spesa.</p>
         </div>
-        <button onClick={exportCsv} disabled={!rows.length}>
-          Esporta CSV ↗
-        </button>
+        <div className="row">
+          <button
+            className="primary"
+            disabled={!validReportRange(from, to) || !movements.length}
+            onClick={() => {
+              window.history.replaceState(null, "", analyticsHref("/analytics", filters));
+              window.location.hash = analyticsHref("/analytics/report", filters).slice(1);
+            }}
+          >
+            Genera report
+          </button>
+          <button onClick={exportCsv} disabled={!rows.length}>
+            Esporta CSV ↗
+          </button>
+        </div>
       </div>
       {!movements.length && (
         <Banner kind="info">
@@ -257,6 +278,7 @@ export function Analytics() {
               setCategory("");
               setTag("");
               setAccount("");
+              setIncludedCategories([]);
               setExcludedCategories([]);
               setExcludedAccounts([]);
               setType("");
@@ -270,6 +292,12 @@ export function Analytics() {
         </div>
         <div className="analytics-exclusions">
           <ExclusionFilter
+            label="Includi categorie"
+            options={categories}
+            selected={includedCategories}
+            onChange={setIncludedCategories}
+          />
+          <ExclusionFilter
             label="Escludi categorie"
             options={categories}
             selected={excludedCategories}
@@ -282,8 +310,10 @@ export function Analytics() {
             onChange={setExcludedAccounts}
           />
           <p className="muted small">
-            Le esclusioni valgono per transazioni, grafici, totali ed esportazione. Un conto escluso
-            rimuove i movimenti in cui compare come origine o destinazione.
+            Seleziona più categorie in «Includi categorie» per analizzarle insieme; nessuna
+            selezione include tutte. Le esclusioni valgono per transazioni, grafici, totali ed
+            esportazione. Un conto escluso rimuove i movimenti in cui compare come origine o
+            destinazione.
           </p>
         </div>
       </section>
@@ -351,10 +381,10 @@ export function Analytics() {
           <Bars
             rows={months}
             series={[
-              { key: "salary", label: "Stipendio", color: "#2563eb" },
-              { key: "yieldNet", label: "Rendite", color: "#0f9d89" },
-              { key: "otherIncome", label: "Altre entrate", color: "#94a3b8" },
-              { key: "spending", label: "Spese", color: "#8b5cf6" },
+              { key: "salary", label: "Stipendio", color: "var(--blue)" },
+              { key: "yieldNet", label: "Rendite", color: "var(--series-0)" },
+              { key: "otherIncome", label: "Altre entrate", color: "var(--series-6)" },
+              { key: "spending", label: "Spese", color: "var(--series-2)" },
             ]}
           />
         </section>
@@ -789,7 +819,7 @@ function ExclusionFilter({
             if (e.target.value) onChange([...selected, e.target.value]);
           }}
         >
-          <option value="">Aggiungi un’esclusione…</option>
+          <option value="">Aggiungi una categoria o un conto…</option>
           {options
             .filter((value) => !selected.includes(value))
             .map((value) => (

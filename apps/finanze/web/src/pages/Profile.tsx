@@ -1,3 +1,4 @@
+import { PageHeading } from "../components/ui";
 import { useState, type FormEvent } from "react";
 import { errorMessage } from "../api/client";
 import { useGet, useWrite } from "../api/hooks";
@@ -14,7 +15,9 @@ export function Profile() {
   if (!me.data) return <Loading />;
   return (
     <>
-      <h1>Profilo</h1>
+      <PageHeading title="Profilo" eyebrow="IL TUO SPAZIO">
+        Gestisci accesso, password e autorizzazioni.
+      </PageHeading>
       <p className="muted">
         Sei connesso come <strong>{me.data.username}</strong> ({ROLE_LABELS[me.data.role]}). I tuoi
         conti e i tuoi dati sono visibili solo a te.
@@ -138,94 +141,96 @@ function UsersCard({ me }: { me: Me }) {
         Solo gli amministratori gestiscono gli utenti. Nessuno, amministratori compresi, vede i dati
         finanziari degli altri.
       </p>
-      <table>
-        <thead>
-          <tr>
-            <th>Nome utente</th>
-            <th>Ruolo</th>
-            <th>Creato il</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {users.data.map((user) => (
-            <tr key={user.id}>
-              <td>
-                {user.username}
-                {user.id === me.userId && <span className="muted small"> (tu)</span>}
-              </td>
-              <td>
-                <select
-                  aria-label={`Ruolo di ${user.username}`}
-                  value={user.role}
-                  onChange={(e) =>
-                    void run(
-                      () =>
-                        update.mutateAsync({
-                          id: user.id,
-                          body: { role: e.target.value as UserRole },
-                        }),
-                      `Ruolo di «${user.username}» aggiornato.`,
-                    )
-                  }
-                >
-                  <option value="user">{ROLE_LABELS.user}</option>
-                  <option value="admin">{ROLE_LABELS.admin}</option>
-                </select>
-              </td>
-              <td>{formatDate(user.createdAt.slice(0, 10))}</td>
-              <td>
-                {resetting === user.id ? (
-                  <div className="row">
-                    <input
-                      type="password"
-                      aria-label={`Nuova password di ${user.username}`}
-                      value={newPassword}
-                      minLength={8}
-                      autoComplete="new-password"
-                      onChange={(e) => setNewPassword(e.target.value)}
-                    />
-                    <button onClick={() => void reset(user)} disabled={newPassword.length < 8}>
-                      Salva
-                    </button>
-                    <button className="link" onClick={() => setResetting(null)}>
-                      Annulla
-                    </button>
-                  </div>
-                ) : (
-                  <div className="row">
-                    <button
-                      className="link"
-                      onClick={() => {
-                        setResetting(user.id);
-                        setNewPassword("");
-                      }}
-                    >
-                      Reimposta password
-                    </button>
-                    {user.id !== me.userId && (
-                      <button
-                        className="link danger"
-                        onClick={() =>
-                          confirm(
-                            `Eliminare «${user.username}» e tutti i suoi dati? L'operazione non si può annullare.`,
-                          ) &&
-                          void run(
-                            () => remove.mutateAsync(user.id),
-                            `Utente «${user.username}» eliminato.`,
-                          )
-                        }
-                      >
-                        Elimina
-                      </button>
-                    )}
-                  </div>
-                )}
-              </td>
+      <div className="scroll-x" tabIndex={0} role="region" aria-label="Tabella dati">
+        <table>
+          <thead>
+            <tr>
+              <th>Nome utente</th>
+              <th>Ruolo</th>
+              <th>Creato il</th>
+              <th />
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {users.data.map((user) => (
+              <tr key={user.id}>
+                <td>
+                  {user.username}
+                  {user.id === me.userId && <span className="muted small"> (tu)</span>}
+                </td>
+                <td>
+                  <select
+                    aria-label={`Ruolo di ${user.username}`}
+                    value={user.role}
+                    onChange={(e) =>
+                      void run(
+                        () =>
+                          update.mutateAsync({
+                            id: user.id,
+                            body: { role: e.target.value as UserRole },
+                          }),
+                        `Ruolo di «${user.username}» aggiornato.`,
+                      )
+                    }
+                  >
+                    <option value="user">{ROLE_LABELS.user}</option>
+                    <option value="admin">{ROLE_LABELS.admin}</option>
+                  </select>
+                </td>
+                <td>{formatDate(user.createdAt.slice(0, 10))}</td>
+                <td>
+                  {resetting === user.id ? (
+                    <div className="row">
+                      <input
+                        type="password"
+                        aria-label={`Nuova password di ${user.username}`}
+                        value={newPassword}
+                        minLength={8}
+                        autoComplete="new-password"
+                        onChange={(e) => setNewPassword(e.target.value)}
+                      />
+                      <button onClick={() => void reset(user)} disabled={newPassword.length < 8}>
+                        Salva
+                      </button>
+                      <button className="link" onClick={() => setResetting(null)}>
+                        Annulla
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="row">
+                      <button
+                        className="link"
+                        onClick={() => {
+                          setResetting(user.id);
+                          setNewPassword("");
+                        }}
+                      >
+                        Reimposta password
+                      </button>
+                      {user.id !== me.userId && (
+                        <button
+                          className="link danger"
+                          onClick={() =>
+                            confirm(
+                              `Eliminare «${user.username}» e tutti i suoi dati? L'operazione non si può annullare.`,
+                            ) &&
+                            void run(
+                              () => remove.mutateAsync(user.id),
+                              `Utente «${user.username}» eliminato.`,
+                            )
+                          }
+                        >
+                          Elimina
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {message && <Banner kind={message.kind}>{message.text}</Banner>}
       <h3>Nuovo utente</h3>
       <form className="stack" onSubmit={submit}>

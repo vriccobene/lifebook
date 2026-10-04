@@ -22,7 +22,7 @@ Il comando rifiuta di lavorare su un database che ha già un utente.
 
 ## Utenti
 
-Lifebook è multiutente: ogni persona ha i propri conti, saldi, entrate e impostazioni, e nessuno vede i dati degli altri, amministratore compreso. Clicca sul tuo nome in alto per aprire il **Profilo**:
+Lifebook è multiutente: ogni persona ha i propri conti, saldi, entrate e impostazioni, e nessuno vede i dati degli altri, amministratore compreso. Clicca sul tuo nome nella navigazione laterale per aprire il **Profilo**:
 
 - **Cambia password:** serve quella attuale. Le altre sessioni aperte (ad esempio su un altro browser) vengono chiuse; i token API restano validi.
 - **Utenti** (solo per l'amministratore): crea un utente con una password iniziale, che poi potrà cambiare. Da qui cambi anche il ruolo (utente o amministratore), reimposti la password di chi l'ha dimenticata (le sue sessioni vengono chiuse) ed elimini un utente. **L'eliminazione cancella tutti i suoi dati** e non si può annullare. Deve restare sempre almeno un amministratore, e non puoi eliminare te stesso.
@@ -52,6 +52,10 @@ Per avviare Lifebook c'è `bin/start`: in locale equivale a `pnpm dev`, dopo `so
 Il database è `apps/finanze/api/data/lifebook.sqlite`, oppure quello indicato da `LIFEBOOK_DB`. Con Docker, prima dei comandi esegui `source bin/set_docker` (e `source bin/unset_docker` per tornare al locale): i comandi girano nel container `api`, che deve essere avviato, sul database del volume. L'ultimo amministratore non si può eliminare.
 
 Funziona anche con l'app avviata e non tocca i dati. Chi può eseguire questi comandi ha comunque accesso al file del database, quindi non indebolisce la protezione.
+
+## Aspetto
+
+Il selettore **Tema**, disponibile nel login e nella barra superiore, offre **Chiaro**, **Scuro** e **Automatico**. Automatico segue il tema del dispositivo e si aggiorna quando cambia. La scelta viene ricordata nel browser, anche dopo il ricaricamento; vale per tutte le schermate e per i grafici.
 
 ## Prima configurazione
 
@@ -165,6 +169,18 @@ risolvere l'avviso prima di considerare aggiornato il calcolo.
 - **Avvisi sui dati.** Spesa negativa, spesa molto diversa dalla media, conto di spesa senza lettura, conto a contributi dichiarati che varia molto senza contributi, conto fermo da troppo tempo. Il dettaglio mese per mese è in «Come è calcolato il costo della vita».
 - **Storico.** Il selettore in alto (3 mesi, 1 anno, tutto, personalizzato) vale per tutti i grafici. Ogni punto è ricalcolato con i dati e i parametri validi a quella data.
 
+### Esplorare i grafici
+
+Cruscotto, Analytics e Rendimenti condividono gli stessi controlli:
+
+- Clicca sul nome di una serie nella legenda per mostrarla o nasconderla. Le voci nascoste sono barrate; «solo» isola una serie e «Mostra tutte» ripristina il confronto.
+- Passa sui punti o sulle barre per leggere i valori. Puoi esplorare il grafico anche con la tastiera; «Mostra dati» apre una tabella dei valori delle serie visibili.
+- Apri «Intervallo» per restringere il singolo grafico a due punti dello storico; «Ripristina intervallo» torna all'intero periodo selezionato nella pagina.
+
+Questi controlli cambiano solo la visualizzazione: non modificano dati, totali o calcoli. In Analytics, invece, i filtri dei movimenti e le esclusioni aggiornano anche riepiloghi ed esportazione CSV.
+
+Su schermi piccoli apri il menu con «Apri navigazione». Le tabelle larghe scorrono all'interno del loro riquadro.
+
 ## Cambiare un dato del passato
 
 Tutto è datato. Puoi inserire saldi o contributi retroattivi, modificarli o cancellarli: lo storico si ricalcola. Anche le impostazioni e i parametri di un conto (tassazione, tasso, conto di spesa…) hanno una data «valido dal»: una modifica non riscrive il passato, che continua a usare i valori che valevano allora. Per correggere un errore, in **Conti → Dettagli** puoi anche modificare una voce già salvata dello storico dei parametri («Modifica»), e cambiare in ogni momento nome, istituto, tipo, uso dell'immobile, modalità dei contributi e «la rata è costo della vita»: queste proprietà non sono datate, quindi la modifica vale per tutto lo storico del conto.
@@ -188,3 +204,30 @@ Il backup contiene i dati di tutti gli utenti, ma non la chiave che cifra i toke
 - Simulazioni probabilistiche (Monte Carlo, backtest, stress test) e quotazioni automatiche.
 
 Le formule e le decisioni di prodotto sono in [lifebook-spec.md](lifebook-spec.md).
+
+### Report dalle categorie di Analytics
+
+In **Analytics**, seleziona il periodo e i filtri, poi premi **Genera report** in alto.
+Il filtro **Includi categorie** permette di selezionare più categorie insieme; senza
+selezione le comprende tutte. Il filtro singolo Categoria e le esclusioni si
+applicano insieme agli altri filtri.
+
+Il report presenta costo della vita mensile, patrimonio, capitale investibile,
+tasso di risparmio, metodi di indipendenza finanziaria, verdetto e grafici.
+Spese, entrate e rendite derivano dai soli movimenti filtrati e inclusi nei conteggi.
+La media usa l’intero periodo selezionato, con mesi parziali proporzionati ai giorni;
+le rendite nette sono annualizzate sulla stessa durata. Se non ci sono spese,
+il costo della vita è non disponibile, non zero. Per il metodo a strati occorre
+classificare tutte le spese selezionate come essenziali o discrezionali.
+
+Il patrimonio usa gli ultimi saldi disponibili entro la data finale, limitati dai
+filtri sui conti. Categorie, tag e ricerca filtrano i flussi, non i saldi. Il buffer
+è ricalcolato sul costo selezionato. Le impostazioni di pianificazione sono quelle
+valide alla data finale; il costo a regime coincide con la media selezionata.
+Il verdetto vale per questo scenario, non per l’intero bilancio personale.
+
+**Modifica filtri** torna ad Analytics conservando la selezione, anche con il tasto
+Indietro del browser. **Stampa / Salva PDF** conserva la versione visualizzata;
+riaprendo il collegamento, il report si ricalcola sui dati aggiornati. Controlla
+che l’importazione copra l’intervallo: i mesi senza movimenti selezionati pesano
+comunque nella media.

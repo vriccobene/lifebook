@@ -45,7 +45,13 @@ function Strip({ cells }: { cells: { date: string; status: string }[] }) {
 }
 
 /** Every historical chart of the dashboard, all for the same time range. */
-export function DashboardCharts({ range }: { range: DateRange }) {
+export function DashboardCharts({
+  range,
+  section = "all",
+}: {
+  range: DateRange;
+  section?: "all" | "overview" | "history";
+}) {
   const q = rangeQuery(range.from, range.to);
   const accounts = useAccounts();
   const snapshots = useSnapshots();
@@ -108,119 +114,127 @@ export function DashboardCharts({ range }: { range: DateRange }) {
 
   return (
     <div className="grid two">
-      <Card title="Patrimonio netto nel tempo">
-        <StackedArea
-          rows={data.netWorth}
-          series={ACCOUNT_TYPES.map((t) => ({ key: t, label: ACCOUNT_TYPE_LABELS[t] }))}
-          line={{ key: "total", label: "Patrimonio netto" }}
-        />
-      </Card>
-      <Card title="Saldo di ogni conto">
-        <LineSeries
-          rows={data.balances}
-          series={data.balanceAccounts.map((a, i) => ({
-            key: a.id,
-            label: a.name,
-            color: colorAt(i),
-          }))}
-        />
-      </Card>
-      <Card title="Costo della vita mensile">
-        <LineSeries
-          rows={data.cost}
-          series={[
-            { key: "monthly", label: "Mese" },
-            { key: "ma3", label: "Media 3 mesi" },
-            { key: "ma6", label: "Media 6 mesi" },
-            { key: "ma12", label: "Media 12 mesi" },
-          ]}
-        />
-      </Card>
-      <Card title="Spesa essenziale e discrezionale">
-        <Bars
-          rows={data.essential}
-          stacked
-          series={[
-            { key: "essential", label: "Essenziale" },
-            { key: "discretionary", label: "Discrezionale" },
-          ]}
-        />
-      </Card>
-      <Card title="Entrate e costo della vita">
-        <Bars
-          rows={data.incomeVsCost}
-          series={[
-            { key: "income", label: "Entrate nette" },
-            { key: "cost", label: "Costo della vita" },
-          ]}
-        />
-      </Card>
-      <Card
-        title="Rendimento lordo e netto"
-        actions={
-          <select
-            value={returnAccount}
-            onChange={(e) => setReturnAccount(e.target.value)}
-            aria-label="Conto"
+      {section !== "history" && (
+        <>
+          <Card title="Patrimonio netto nel tempo">
+            <StackedArea
+              rows={data.netWorth}
+              series={ACCOUNT_TYPES.map((t) => ({ key: t, label: ACCOUNT_TYPE_LABELS[t] }))}
+              line={{ key: "total", label: "Patrimonio netto" }}
+            />
+          </Card>
+          <Card title="Saldo di ogni conto">
+            <LineSeries
+              rows={data.balances}
+              series={data.balanceAccounts.map((a, i) => ({
+                key: a.id,
+                label: a.name,
+                color: colorAt(i),
+              }))}
+            />
+          </Card>
+        </>
+      )}
+      {section !== "overview" && (
+        <>
+          <Card title="Costo della vita mensile">
+            <LineSeries
+              rows={data.cost}
+              series={[
+                { key: "monthly", label: "Mese" },
+                { key: "ma3", label: "Media 3 mesi" },
+                { key: "ma6", label: "Media 6 mesi" },
+                { key: "ma12", label: "Media 12 mesi" },
+              ]}
+            />
+          </Card>
+          <Card title="Spesa essenziale e discrezionale">
+            <Bars
+              rows={data.essential}
+              stacked
+              series={[
+                { key: "essential", label: "Essenziale" },
+                { key: "discretionary", label: "Discrezionale" },
+              ]}
+            />
+          </Card>
+          <Card title="Entrate e costo della vita">
+            <Bars
+              rows={data.incomeVsCost}
+              series={[
+                { key: "income", label: "Entrate nette" },
+                { key: "cost", label: "Costo della vita" },
+              ]}
+            />
+          </Card>
+          <Card
+            title="Rendimento lordo e netto"
+            actions={
+              <select
+                value={returnAccount}
+                onChange={(e) => setReturnAccount(e.target.value)}
+                aria-label="Conto"
+              >
+                <option value="">Totale</option>
+                {data.returnable.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            }
           >
-            <option value="">Totale</option>
-            {data.returnable.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-        }
-      >
-        <Bars
-          rows={returnRows}
-          format={formatPct}
-          series={[
-            { key: "gross", label: "Lordo" },
-            { key: "net", label: "Netto" },
-          ]}
-        />
-      </Card>
-      <Card title="Tasso di risparmio">
-        <LineSeries
-          rows={data.savings}
-          series={[{ key: "rate", label: "Tasso di risparmio" }]}
-          format={formatPct}
-        />
-      </Card>
-      <Card title="Copertura dei metodi nel tempo">
-        <LineSeries
-          rows={data.coverage}
-          format={formatPct}
-          series={data.methodIds.map((id, i) => ({
-            key: id,
-            label: METHOD_LABELS[id] ?? id,
-            color: colorAt(i),
-          }))}
-        />
-      </Card>
-      <div style={{ gridColumn: "1 / -1" }}>
-        <Card title="Semaforo e verdetto nel tempo">
-          <table>
-            <tbody>
-              <tr>
-                <th style={{ width: 210 }}>Verdetto</th>
-                <td>
-                  <Strip cells={verdictStrip(verdict.data.points)} />
-                </td>
-              </tr>
-              {data.methodIds.map((id) => (
-                <tr key={id}>
-                  <th>{METHOD_LABELS[id] ?? id}</th>
-                  <td>
-                    <Strip cells={trafficStrip(methods.data.points, id)} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
-      </div>
+            <Bars
+              rows={returnRows}
+              format={formatPct}
+              series={[
+                { key: "gross", label: "Lordo" },
+                { key: "net", label: "Netto" },
+              ]}
+            />
+          </Card>
+          <Card title="Tasso di risparmio">
+            <LineSeries
+              rows={data.savings}
+              series={[{ key: "rate", label: "Tasso di risparmio" }]}
+              format={formatPct}
+            />
+          </Card>
+          <Card title="Copertura dei metodi nel tempo">
+            <LineSeries
+              rows={data.coverage}
+              format={formatPct}
+              series={data.methodIds.map((id, i) => ({
+                key: id,
+                label: METHOD_LABELS[id] ?? id,
+                color: colorAt(i),
+              }))}
+            />
+          </Card>
+          <div style={{ gridColumn: "1 / -1" }}>
+            <Card title="Semaforo e verdetto nel tempo">
+              <table>
+                <tbody>
+                  <tr>
+                    <th style={{ width: 210 }}>Verdetto</th>
+                    <td>
+                      <Strip cells={verdictStrip(verdict.data.points)} />
+                    </td>
+                  </tr>
+                  {data.methodIds.map((id) => (
+                    <tr key={id}>
+                      <th>{METHOD_LABELS[id] ?? id}</th>
+                      <td>
+                        <Strip cells={trafficStrip(methods.data.points, id)} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -1,4 +1,6 @@
+import { ThemeControl } from "../components/ThemeControl";
 import { useState, type FormEvent } from "react";
+import { Icon } from "../components/Icon";
 import { useAuth } from "../api/auth";
 import { errorMessage } from "../api/client";
 import { useGet } from "../api/hooks";
@@ -28,8 +30,31 @@ export function Login() {
 
   return (
     <main className="login">
+      <section className="login-story" aria-label="Benvenuto">
+        <div className="brand">
+          <span className="brand-mark">
+            <Icon name="book" size={25} />
+          </span>
+          <span>
+            Lifebook<small>FINANZE PERSONALI</small>
+          </span>
+        </div>
+        <div className="eyebrow">IL FUTURO, UN MESE ALLA VOLTA</div>
+        <h2>
+          Più chiarezza oggi.
+          <br />
+          Più libertà domani.
+        </h2>
+        <p>Patrimonio, spese e investimenti: tutto quello che serve per capire a che punto sei.</p>
+      </section>
       <section className="card">
+        <div className="login-theme">
+          <ThemeControl />
+        </div>
         <h1>Lifebook Finanze</h1>
+        <p className="muted">
+          {setupRequired ? "Crea il tuo spazio personale." : "Accedi al tuo spazio personale."}
+        </p>
         {setupRequired && (
           <Banner kind="info">
             Primo avvio: scegli nome utente e password (almeno 8 caratteri).

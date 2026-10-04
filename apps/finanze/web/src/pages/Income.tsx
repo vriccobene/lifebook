@@ -1,3 +1,4 @@
+import { PageHeading } from "../components/ui";
 import { useState, type FormEvent } from "react";
 import { errorMessage } from "../api/client";
 import { useGet, useWrite } from "../api/hooks";
@@ -97,7 +98,9 @@ export function Income() {
 
   return (
     <>
-      <h1>Entrate</h1>
+      <PageHeading title="Entrate" eyebrow="I TUOI FLUSSI">
+        Stipendi, rendite e altre entrate: distingui le voci ricorrenti dagli incassi una tantum.
+      </PageHeading>
       <Card title={editing ? "Modifica voce" : "Nuova voce"}>
         <form className="stack" onSubmit={submit}>
           <div className="row">
@@ -202,26 +205,28 @@ export function Income() {
         ) : deposits.length === 0 ? (
           <EmptyState>Nessun accredito Firefly importato.</EmptyState>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Conto</th>
-                <th>Descrizione</th>
-                <th className="num">Importo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {deposits.map((m) => (
-                <tr key={m.id}>
-                  <td>{formatDate(m.date)}</td>
-                  <td>{m.toName}</td>
-                  <td>{m.description}</td>
-                  <td className="num">{formatEuro(m.amount)}</td>
+          <div className="scroll-x" tabIndex={0} role="region" aria-label="Tabella dati">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Conto</th>
+                  <th>Descrizione</th>
+                  <th className="num">Importo</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {deposits.map((m) => (
+                  <tr key={m.id}>
+                    <td>{formatDate(m.date)}</td>
+                    <td>{m.toName}</td>
+                    <td>{m.description}</td>
+                    <td className="num">{formatEuro(m.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
       <Card>
@@ -230,42 +235,46 @@ export function Income() {
             Nessuna entrata manuale. Gli accrediti Firefly importati sono mostrati separatamente.
           </EmptyState>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Voce</th>
-                <th className="num">Importo</th>
-                <th>Quando</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {items.data.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.name}</td>
-                  <td className="num">{formatEuro(item.amount, 2)}</td>
-                  <td>{describe(item)}</td>
-                  <td>
-                    <button
-                      className="link"
-                      onClick={() => {
-                        setEditing(item.id);
-                        setForm(toForm(item));
-                      }}
-                    >
-                      Modifica
-                    </button>
-                    <button
-                      className="link danger"
-                      onClick={() => confirm(`Eliminare «${item.name}»?`) && remove.mutate(item.id)}
-                    >
-                      Elimina
-                    </button>
-                  </td>
+          <div className="scroll-x" tabIndex={0} role="region" aria-label="Tabella dati">
+            <table>
+              <thead>
+                <tr>
+                  <th>Voce</th>
+                  <th className="num">Importo</th>
+                  <th>Quando</th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {items.data.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.name}</td>
+                    <td className="num">{formatEuro(item.amount, 2)}</td>
+                    <td>{describe(item)}</td>
+                    <td>
+                      <button
+                        className="link"
+                        onClick={() => {
+                          setEditing(item.id);
+                          setForm(toForm(item));
+                        }}
+                      >
+                        Modifica
+                      </button>
+                      <button
+                        className="link danger"
+                        onClick={() =>
+                          confirm(`Eliminare «${item.name}»?`) && remove.mutate(item.id)
+                        }
+                      >
+                        Elimina
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
     </>

@@ -333,3 +333,48 @@ it("treats a linked securities receipt as gross and applies the account tax to K
   expect(dialog.getByRole("status").textContent).toContain(`Netto stimato: ${formatEuro(74, 2)}`);
   expect(dialog.queryByLabelText(/^Importo lordo/)).toBeNull();
 });
+
+it("generates a report with multiple categories and restores every filter on return", async () => {
+  const base: FireflyMovement = {
+    id: "one",
+    externalId: "1",
+    date: todayIso(),
+    type: "withdrawal",
+    amount: 10,
+    description: "Casa",
+    fromAccountId: null,
+    toAccountId: null,
+    fromName: "Banca",
+    toName: "Negozio",
+    categoryName: "Casa",
+  };
+  vi.mocked(apiFetch).mockResolvedValue([
+    base,
+    { ...base, id: "two", description: "Viaggi", categoryName: "Viaggi" },
+    { ...base, id: "three", description: "Altro", categoryName: "Altro" },
+  ]);
+  const mount = () =>
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <Analytics />
+      </QueryClientProvider>,
+    );
+  window.location.hash = "/analytics";
+  const view = mount();
+  await screen.findByRole("button", { name: "Genera report" });
+  fireEvent.change(screen.getByLabelText("Includi categorie"), { target: { value: "Casa" } });
+  fireEvent.change(screen.getByLabelText("Includi categorie"), { target: { value: "Viaggi" } });
+  expect(screen.queryByRole("button", { name: "Dettagli Altro" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Genera report" }));
+  expect(window.location.hash).toContain("/analytics/report?");
+  const savedHash = window.location.hash;
+  view.unmount();
+  window.location.hash = savedHash.replace("/analytics/report", "/analytics");
+  mount();
+  await screen.findByRole("button", { name: "Includi categorie: rimuovi Casa" });
+  expect(screen.getByRole("button", { name: "Includi categorie: rimuovi Viaggi" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Dettagli Altro" })).toBeNull();
+  window.location.hash = "";
+});

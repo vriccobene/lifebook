@@ -1,3 +1,4 @@
+import { PageHeading } from "../components/ui";
 import { useEffect, useMemo, useState } from "react";
 import { errorMessage } from "../api/client";
 import { useGet, useWrite } from "../api/hooks";
@@ -65,7 +66,9 @@ export function Settings() {
 
   return (
     <>
-      <h1>Impostazioni</h1>
+      <PageHeading title="Impostazioni" eyebrow="IL TUO PIANO">
+        Personalizza ipotesi e obiettivi. Ogni modifica ha una data di validità.
+      </PageHeading>
       {!effective.publicPension.enabled && (
         <Banner kind="info">
           <strong>Senza pensione pubblica.</strong> La pensione è disattivata: nessun metodo la

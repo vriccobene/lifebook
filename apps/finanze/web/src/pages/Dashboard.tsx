@@ -64,7 +64,11 @@ export function Dashboard() {
   return (
     <>
       <div className="toolbar">
-        <h1 style={{ margin: 0 }}>Cruscotto</h1>
+        <div className="page-intro" style={{ marginBottom: 0 }}>
+          <div className="eyebrow">LA TUA INDIPENDENZA FINANZIARIA</div>
+          <h1>Cruscotto</h1>
+          <p>Il quadro completo, per scegliere il prossimo passo.</p>
+        </div>
         {control}
       </div>
 
@@ -77,11 +81,18 @@ export function Dashboard() {
 
       <section className={`card verdict ${v.status}`} aria-label="Verdetto">
         <div>
+          <div className="eyebrow">IL TUO OBIETTIVO</div>
           <div className="big">{VERDICT_TEXT[v.status]}</div>
           <div className="muted">
             {v.greenCount} metodi verdi su {v.green.length + v.notGreen.length} valutati · servono{" "}
             {v.minGreenMethods}
           </div>
+          <progress
+            className="verdict-progress"
+            value={v.greenCount}
+            max={Math.max(1, v.minGreenMethods)}
+            aria-label="Metodi verdi rispetto all’obiettivo"
+          />
         </div>
         <div className="stack small" style={{ flex: 1, minWidth: 240 }}>
           {v.determining.length > 0 && (
@@ -143,6 +154,8 @@ export function Dashboard() {
         </Card>
       )}
 
+      <DashboardCharts range={range} section="overview" />
+
       <Card title="Posso smettere di lavorare? Metodi a confronto">
         <MethodsTable methods={methods.data.methods} />
         <div className="row" style={{ marginTop: 12 }}>
@@ -168,8 +181,15 @@ export function Dashboard() {
 
       <LivingCostDetail livingCost={cost} accountName={accountName} />
 
-      <h2>Storico</h2>
-      <DashboardCharts range={range} />
+      <div className="section-heading">
+        <div className="eyebrow">NEL TEMPO</div>
+        <h2>La tua traiettoria finanziaria</h2>
+        <p className="muted small">
+          Esplora i valori e scegli le serie da confrontare. L’intervallo in alto si applica a tutti
+          i grafici.
+        </p>
+      </div>
+      <DashboardCharts range={range} section="history" />
     </>
   );
 }

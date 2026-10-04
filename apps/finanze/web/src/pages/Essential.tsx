@@ -1,3 +1,4 @@
+import { PageHeading } from "../components/ui";
 import { useState, type FormEvent } from "react";
 import { errorMessage } from "../api/client";
 import { useGet, useWrite } from "../api/hooks";
@@ -92,7 +93,9 @@ export function Essential() {
 
   return (
     <>
-      <h1>Spesa essenziale</h1>
+      <PageHeading title="Spesa essenziale" eyebrow="LE TUE PRIORITÀ">
+        Definisci quanto serve ogni mese, prima delle spese discrezionali.
+      </PageHeading>
       {inUse === null ? (
         <Banner kind="info">
           {entries.data.length === 0

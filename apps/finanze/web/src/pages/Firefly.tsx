@@ -1,3 +1,4 @@
+import { PageHeading } from "../components/ui";
 import { useState, type FormEvent } from "react";
 import { apiFetch, errorMessage } from "../api/client";
 import { useGet, useWrite } from "../api/hooks";
@@ -29,7 +30,9 @@ export function Firefly() {
   const c = connection.data;
   return (
     <>
-      <h1>Firefly III</h1>
+      <PageHeading title="Firefly III" eyebrow="I TUOI COLLEGAMENTI">
+        Collega i conti e importa saldi e movimenti per tenere aggiornato Lifebook.
+      </PageHeading>
       <p className="muted">
         Importa da Firefly III i saldi di fine mese e i trasferimenti tra i tuoi conti. Il
         collegamento è personale: ogni utente usa il proprio Firefly III.

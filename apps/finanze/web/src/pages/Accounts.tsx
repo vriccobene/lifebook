@@ -1,3 +1,4 @@
+import { PageHeading } from "../components/ui";
 import { useState, type FormEvent } from "react";
 import { errorMessage } from "../api/client";
 import { useWrite } from "../api/hooks";
@@ -558,7 +559,9 @@ export function Accounts() {
   return (
     <>
       <div className="toolbar">
-        <h1 style={{ margin: 0 }}>Conti</h1>
+        <PageHeading title="Conti" eyebrow="IL TUO PATRIMONIO">
+          Ogni conto al suo posto. Saldi, parametri e storico, in un’unica vista.
+        </PageHeading>
         <button className="primary" onClick={() => setCreating(!creating)}>
           {creating ? "Chiudi" : "Nuovo conto"}
         </button>

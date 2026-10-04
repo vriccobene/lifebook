@@ -4,3 +4,5 @@ pnpm-lock.yaml
 coverage
 docs
 drizzle
+# Preserve the imported UI skill sources and reference catalog verbatim.
+.agents/skills

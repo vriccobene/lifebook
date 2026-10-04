@@ -1,3 +1,4 @@
+import { PageHeading } from "../components/ui";
 import { useState, type FormEvent } from "react";
 import { errorMessage } from "../api/client";
 import { useWrite } from "../api/hooks";
@@ -114,7 +115,9 @@ export function Transfers() {
 
   return (
     <>
-      <h1>Trasferimenti</h1>
+      <PageHeading title="Trasferimenti" eyebrow="TRA I TUOI CONTI">
+        Segui il capitale che si sposta, senza confonderlo con spese o rendimenti.
+      </PageHeading>
       <Card>
         <div className="row">
           <Field

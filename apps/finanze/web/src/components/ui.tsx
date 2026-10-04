@@ -13,7 +13,7 @@ export function Card({
   return (
     <section className="card">
       {(title || actions) && (
-        <div className="toolbar" style={{ marginBottom: 8 }}>
+        <div className="card-header">
           {title ? <h2 style={{ margin: 0 }}>{title}</h2> : <span />}
           {actions}
         </div>
@@ -45,7 +45,16 @@ export function Banner({
 }
 
 export function Loading({ what = "dati" }: { what?: string }) {
-  return <p className="muted">Caricamento {what}…</p>;
+  return (
+    <div className="loading-state" role="status" aria-busy="true">
+      Caricamento {what}…
+      <div className="loading-bars" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
+    </div>
+  );
 }
 
 export function QueryError({ error }: { error: unknown }) {
@@ -84,5 +93,23 @@ export function Field({
 }
 
 export function EmptyState({ children }: { children: ReactNode }) {
-  return <p className="muted">{children}</p>;
+  return <div className="empty-state">{children}</div>;
+}
+
+export function PageHeading({
+  title,
+  eyebrow,
+  children,
+}: {
+  title: string;
+  eyebrow: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="page-intro">
+      <div className="eyebrow">{eyebrow}</div>
+      <h1>{title}</h1>
+      <p>{children}</p>
+    </div>
+  );
 }

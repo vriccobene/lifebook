@@ -227,3 +227,13 @@ coincidono. Riepiloghi, grafici, raggruppamenti, dettagli e CSV usano gli stessi
 valori. L’importo Firefly originale resta visibile; i trasferimenti non sono
 entrate tassabili. Per entrate senza conto collegato rimane disponibile il lordo
 manuale: nessuna aliquota viene dedotta dal nome del conto.
+
+### Skill UI locali
+
+Le skill dei ruoli UI sono copiate in [`.agents/skills`](.agents/skills):
+`frontend-ui-engineering`, `design-taste-frontend`, `impeccable`,
+`awesome-design-md`, `test-driven-development` e `playwright-browser-testing`.
+La copia proviene da `bikelyo/software-factory` e conserva i profili locali,
+le licenze e i riferimenti inclusi. Non si aggiorna automaticamente.
+Il redesign usa la modalità operativa di Impeccable e le regole di frontend
+engineering; il catalogo visivo resta facoltativo quando viene scelto un riferimento.
